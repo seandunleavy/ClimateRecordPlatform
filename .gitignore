@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+Thumbs.db
+
+# Large / regenerable data
+data/bronze/**
+data/silver/**
+data/gold/**
+!data/bronze/.gitkeep
+!data/silver/.gitkeep
+!data/gold/.gitkeep
+!data/meta/.gitkeep
+
+# Keep tiny samples if added later
+!data/samples/**
+
+*.duckdb
+*.duckdb.wal
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
