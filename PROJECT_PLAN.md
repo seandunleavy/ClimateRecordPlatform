@@ -33,10 +33,10 @@ A reproducible **observational climate data warehouse** from public station dail
 
 ```
 PHASE 1 — Bronze
-  ✅ Repo scaffold
-  🔄 Meta download (stations, inventory, readme)
-  🔄 Sample station daily files (SE US subset)
-NEXT: Run ingest scripts; verify bronze layout; then silver parse
+  ✅ Repo scaffold + docs
+  ✅ Meta download (stations ~11MB, inventory ~36MB, readme)
+  ✅ Sample station .dly files (15 x SC/NC/GA subset — actually first US* in sort = GA Coop)
+NEXT: Prefer USW/USC long-record stations; silver .dly parser
 ```
 
 ---
@@ -46,9 +46,10 @@ NEXT: Run ingest scripts; verify bronze layout; then silver parse
 ### Phase 1 — Bronze (now)
 
 - [x] Repo + docs skeleton  
-- [ ] `download_ghcnd_meta` — stations, inventory, readme  
-- [ ] `download_station_days` — configurable states / max stations  
-- [ ] Document bronze paths + runbook  
+- [x] `download_ghcnd_meta` — stations, inventory, readme  
+- [x] `download_station_days` — `.dly` per station (states + max)  
+- [x] Bronze run verified 2026-07-20 (15 stations)  
+- [ ] Improve station sampling (long-record USW/USC, not only first IDs)
 
 ### Phase 2 — Silver
 

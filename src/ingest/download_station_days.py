@@ -97,18 +97,12 @@ def main() -> None:
     errors = []
     for s in stations:
         sid = s["id"]
-        # CSV form under all/ — some IDs only have .dly; try csv then dly
-        csv_url = f"{GHCND_BASE}/all/{sid}.csv"
+        # Bulk tree uses fixed-width .dly per station (CSV not always published under all/)
         dly_url = f"{GHCND_BASE}/all/{sid}.dly"
-        csv_dest = BRONZE_STATIONS / f"{sid}.csv"
         dly_dest = BRONZE_STATIONS / f"{sid}.dly"
         try:
-            try:
-                download_file(csv_url, csv_dest)
-                downloaded.append({**s, "format": "csv", "path": str(csv_dest)})
-            except Exception:
-                download_file(dly_url, dly_dest)
-                downloaded.append({**s, "format": "dly", "path": str(dly_dest)})
+            download_file(dly_url, dly_dest)
+            downloaded.append({**s, "format": "dly", "path": str(dly_dest)})
         except Exception as e:  # noqa: BLE001
             errors.append({"id": sid, "error": str(e)})
             print(f"error {sid}: {e}")
