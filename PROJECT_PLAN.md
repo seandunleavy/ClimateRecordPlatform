@@ -36,10 +36,11 @@ PHASE 3 — Gold (v1)
   ✅ Bronze: meta + long-record USW/USC (SC/NC/GA), inventory-based pick
   ✅ Silver: .dly → daily Parquet (TMAX/TMIN/PRCP)
   ✅ QC: qc_pass / qc_reasons on silver; export fails to CSV
-  ✅ Gold v1: dim_station, fact_observation_daily, monthly climate,
-     monthly HDD/CDD, yearly coverage, freeze season, extremes
-NEXT: dbt + DuckDB tests; then serve / Dunleavy
+  ✅ Gold star: dim_station, dim_date, dim_element, fact_observation_daily
+  ✅ Marts: monthly climate, HDD/CDD, coverage, freeze, extremes
+NEXT: dbt + DuckDB tests; then serve / Dunleavy (charts from marts)
 ```
+
 
 
 ---
@@ -66,12 +67,12 @@ NEXT: dbt + DuckDB tests; then serve / Dunleavy
 
 ### Phase 3 — Gold + dbt
 
-- [x] `dim_station` (current attributes; SCD2 later if needed)  
-- [x] `fact_observation_daily` (qc_pass only)  
-- [x] Marts: monthly climate, monthly HDD/CDD, yearly coverage  
-- [x] Marts: freeze season (yearly), extremes (yearly)  
-- [ ] `dim_date` / richer dims as needed  
-- [ ] dbt + DuckDB models + tests  
+- [x] Star dims: `dim_station`, `dim_date`, `dim_element`  
+- [x] Atomic fact: `fact_observation_daily` (station + date_key + element_code)  
+- [x] Marts: monthly climate, HDD/CDD, coverage, freeze, extremes  
+- [ ] SCD2 on stations if needed  
+- [ ] dbt + DuckDB models + tests over star + marts  
+
 
 
 ### Phase 4 — Serve

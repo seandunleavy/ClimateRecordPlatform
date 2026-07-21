@@ -1,43 +1,28 @@
 """
-Phase 3 (start) — build first gold tables from QC-pass silver.
+Phase 3 — gold star schema + analytics marts (qc_pass silver only).
 
-Input:
-  data/silver/stations_qc/*.parquet   (rows with qc_pass / qc_reasons)
+Star (atomic):
+  dim_station ──┐
+  dim_date    ──┼── fact_observation_daily
+  dim_element ──┘
 
-Output (Parquet):
-  data/gold/dims/dim_station.parquet
-  data/gold/facts/fact_observation_daily.parquet   (qc_pass only)
-  data/gold/marts/mart_monthly_climate.parquet
-  data/gold/marts/mart_degree_days_monthly.parquet
-  data/gold/marts/mart_coverage_yearly.parquet
-  data/gold/marts/mart_freeze_season_yearly.parquet
-  data/gold/marts/mart_extremes_yearly.parquet
+Marts (pre-aggregated for fast charts — same as aggregate facts):
+  mart_monthly_climate, mart_degree_days_monthly, mart_coverage_yearly,
+  mart_freeze_season_yearly, mart_extremes_yearly
 
-What is a "mart"?
-  A mart is a ready-to-use summary table for a question (dashboard/report),
-  not the raw daily fact. Example: "HDD by station-month" is a mart;
-  every daily TMAX row is a fact.
+Why both?
+  - Star/fact: flexible drill-down, joins, BI tools
+  - Marts: tiny tables for high-performance dashboards (no scan of 1.8M rows)
 
-Degree-day method (documented, simple):
-  Daily mean temp ≈ (TMAX + TMIN) / 2   when both pass QC that day
-  HDD = max(0, base_c - tavg)           default base 18 °C (~65 °F)
-  CDD = max(0, tavg - base_c)
-  Monthly marts sum daily HDD/CDD.
+Degree-day method:
+  tavg ≈ (TMAX+TMIN)/2; HDD=max(0,base-tavg); CDD=max(0,tavg-base); base default 18°C
 
-Freeze-season method (calendar year, simple):
-  Freeze day: TMIN <= 0 °C (qc_pass).
-  last_spring_freeze: last freeze date with month <= 6
-  first_fall_freeze: first freeze date with month >= 7
-  growing_season_days: days between those two when both exist
-
-Extremes method (calendar year):
-  Counts of hot / cold / wet days using fixed thresholds (see code).
-
-Only qc_pass rows feed gold. Failures stay in silver_qc for audit.
+Freeze-season (calendar year):
+  freeze if TMIN<=0; last spring freeze month<=6; first fall freeze month>=7
 
 Examples:
   python -m src.transform.silver_to_gold
-  python -m src.transform.silver_to_gold --base-c 18
+  python -m src.transform.silver_to_gold --skip-fact
   python -m src.transform.silver_to_gold --station USW00013872
 """
 from __future__ import annotations
@@ -59,11 +44,35 @@ from src.common.paths import (
 )
 
 DEFAULT_BASE_C = 18.0
-# Extremes thresholds (°C / mm) — product definitions, documented for portfolio honesty
-HOT_DAY_TMAX_C = 32.0  # ~90 °F
-VERY_HOT_TMAX_C = 35.0  # ~95 °F
+HOT_DAY_TMAX_C = 32.0
+VERY_HOT_TMAX_C = 35.0
 FREEZE_TMIN_C = 0.0
-WET_DAY_PRCP_MM = 25.4  # ~1 inch
+WET_DAY_PRCP_MM = 25.4
+
+# Catalog for dim_element (extend when silver keeps more elements)
+ELEMENT_CATALOG: list[dict] = [
+    {
+        "element_code": "TMAX",
+        "element_name": "Daily maximum temperature",
+        "category": "temperature",
+        "unit": "C",
+        "source_scale": "tenths of degrees C",
+    },
+    {
+        "element_code": "TMIN",
+        "element_name": "Daily minimum temperature",
+        "category": "temperature",
+        "unit": "C",
+        "source_scale": "tenths of degrees C",
+    },
+    {
+        "element_code": "PRCP",
+        "element_name": "Daily precipitation",
+        "category": "precipitation",
+        "unit": "mm",
+        "source_scale": "tenths of mm",
+    },
+]
 
 
 def load_qc_frames(station_ids: list[str] | None) -> pd.DataFrame:
@@ -85,8 +94,7 @@ def load_qc_frames(station_ids: list[str] | None) -> pd.DataFrame:
         df = pd.read_parquet(path)
         if "qc_pass" not in df.columns:
             raise SystemExit(f"{path.name} missing qc_pass; re-run apply_qc")
-        passed = df.loc[df["qc_pass"]].copy()
-        frames.append(passed)
+        frames.append(df.loc[df["qc_pass"]].copy())
 
     out = pd.concat(frames, ignore_index=True)
     out["date"] = pd.to_datetime(out["date"])
@@ -95,8 +103,7 @@ def load_qc_frames(station_ids: list[str] | None) -> pd.DataFrame:
 
 def build_dim_station(station_ids: list[str]) -> pd.DataFrame:
     """
-    Station dimension from ghcnd-stations.txt for IDs we actually modeled.
-    One current row per station (SCD2 later if needed).
+    Station dimension (conformed). Natural key: station_id (GHCNd ID is stable).
     """
     stations_path = BRONZE_META / "ghcnd-stations.txt"
     if not stations_path.exists():
@@ -132,24 +139,115 @@ def build_dim_station(station_ids: list[str]) -> pd.DataFrame:
             }
         )
     dim = pd.DataFrame(rows)
-    # Stable order
     if not dim.empty:
         dim = dim.sort_values("station_id").reset_index(drop=True)
     return dim
 
 
+def build_dim_date(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    """
+    Date dimension. Key: date_key INT YYYYMMDD (BI-friendly join key).
+    Built for full calendar span covering the fact data.
+    """
+    days = pd.date_range(start=start.normalize(), end=end.normalize(), freq="D")
+    dim = pd.DataFrame({"date": days})
+    dim["date_key"] = dim["date"].dt.strftime("%Y%m%d").astype(int)
+    dim["year"] = dim["date"].dt.year
+    dim["quarter"] = dim["date"].dt.quarter
+    dim["month"] = dim["date"].dt.month
+    dim["month_name"] = dim["date"].dt.month_name()
+    dim["day"] = dim["date"].dt.day
+    dim["day_of_year"] = dim["date"].dt.dayofyear
+    dim["day_of_week"] = dim["date"].dt.dayofweek  # Mon=0
+    dim["day_name"] = dim["date"].dt.day_name()
+    dim["is_weekend"] = dim["day_of_week"] >= 5
+    dim["year_month"] = dim["date"].dt.strftime("%Y-%m")
+    dim["year_month_key"] = dim["date"].dt.strftime("%Y%m").astype(int)
+    # Meteorological season (NH): DJF winter, MAM spring, JJA summer, SON fall
+    season_map = {
+        12: "winter",
+        1: "winter",
+        2: "winter",
+        3: "spring",
+        4: "spring",
+        5: "spring",
+        6: "summer",
+        7: "summer",
+        8: "summer",
+        9: "fall",
+        10: "fall",
+        11: "fall",
+    }
+    dim["season"] = dim["month"].map(season_map)
+    return dim[
+        [
+            "date_key",
+            "date",
+            "year",
+            "quarter",
+            "month",
+            "month_name",
+            "day",
+            "day_of_year",
+            "day_of_week",
+            "day_name",
+            "is_weekend",
+            "year_month",
+            "year_month_key",
+            "season",
+        ]
+    ]
+
+
+def build_dim_element() -> pd.DataFrame:
+    """Element dimension — measurement type catalog."""
+    return pd.DataFrame(ELEMENT_CATALOG)
+
+
 def build_fact_observation_daily(qc_pass: pd.DataFrame) -> pd.DataFrame:
-    """Slim daily fact: one row per station + date + element (pass only)."""
-    cols = ["station_id", "date", "element", "value", "unit", "mflag", "sflag"]
-    fact = qc_pass.loc[:, [c for c in cols if c in qc_pass.columns]].copy()
-    fact = fact.sort_values(["station_id", "date", "element"]).reset_index(drop=True)
+    """
+    Atomic fact — grain: station_id + date_key + element_code.
+
+    FK-style columns (natural keys):
+      station_id   -> dim_station.station_id
+      date_key     -> dim_date.date_key
+      element_code -> dim_element.element_code
+
+    Degenerate dims (kept on fact): mflag, sflag (source lineage, low cardinality).
+    """
+    fact = qc_pass.loc[
+        :,
+        [c for c in ("station_id", "date", "element", "value", "unit", "mflag", "sflag") if c in qc_pass.columns],
+    ].copy()
+    fact = fact.rename(columns={"element": "element_code"})
+    fact["date_key"] = fact["date"].dt.strftime("%Y%m%d").astype(int)
+    # Measure + keys only (date kept for convenience / partition peeks; optional)
+    cols = [
+        "station_id",
+        "date_key",
+        "element_code",
+        "value",
+        "unit",
+        "mflag",
+        "sflag",
+        "date",
+    ]
+    fact = fact[[c for c in cols if c in fact.columns]]
+    fact = fact.sort_values(["station_id", "date_key", "element_code"]).reset_index(drop=True)
     return fact
+
+
+def _add_month_keys(df: pd.DataFrame) -> pd.DataFrame:
+    """Add year_month_key for mart ↔ dim_date month grain joins."""
+    out = df.copy()
+    out["year_month_key"] = (out["year"] * 100 + out["month"]).astype(int)
+    return out
 
 
 def build_mart_monthly_climate(qc_pass: pd.DataFrame) -> pd.DataFrame:
     """
-    Grain: station_id + year + month.
-    avg_tmax_c, avg_tmin_c, total_prcp_mm, n_days_* completeness helpers.
+    Aggregate fact / mart — grain: station_id + year + month.
+    Fast path for monthly climate charts.
     """
     df = qc_pass.copy()
     df["year"] = df["date"].dt.year
@@ -169,7 +267,6 @@ def build_mart_monthly_climate(qc_pass: pd.DataFrame) -> pd.DataFrame:
             tmp = g["value"].mean().rename(columns={"value": value_col})
         else:
             tmp = g["value"].sum().rename(columns={"value": value_col})
-        # day counts for that element
         cnt = (
             sub.groupby(["station_id", "year", "month"], as_index=False)
             .size()
@@ -185,21 +282,18 @@ def build_mart_monthly_climate(qc_pass: pd.DataFrame) -> pd.DataFrame:
     for p in parts[1:]:
         mart = mart.merge(p, on=["station_id", "year", "month"], how="outer")
 
-    # Round for readability
     for col in ("avg_tmax_c", "avg_tmin_c", "total_prcp_mm"):
         if col in mart.columns:
             mart[col] = mart[col].round(2)
 
+    mart = _add_month_keys(mart)
     return mart.sort_values(["station_id", "year", "month"]).reset_index(drop=True)
 
 
 def build_mart_degree_days_monthly(
     qc_pass: pd.DataFrame, *, base_c: float
 ) -> pd.DataFrame:
-    """
-    Grain: station_id + year + month.
-    Requires both TMAX and TMIN on the same day (both already qc_pass).
-    """
+    """Aggregate fact / mart — grain: station_id + year + month (HDD/CDD)."""
     temps = qc_pass.loc[
         qc_pass["element"].isin(["TMAX", "TMIN"]),
         ["station_id", "date", "element", "value"],
@@ -217,7 +311,6 @@ def build_mart_degree_days_monthly(
         return pd.DataFrame()
 
     wide = wide.dropna(subset=["TMAX", "TMIN"]).copy()
-    # Simple daily mean used by many degree-day approximations
     wide["tavg_c"] = (wide["TMAX"] + wide["TMIN"]) / 2.0
     wide["hdd"] = (base_c - wide["tavg_c"]).clip(lower=0.0)
     wide["cdd"] = (wide["tavg_c"] - base_c).clip(lower=0.0)
@@ -237,21 +330,20 @@ def build_mart_degree_days_monthly(
     mart["hdd_sum"] = mart["hdd_sum"].round(2)
     mart["cdd_sum"] = mart["cdd_sum"].round(2)
     mart["avg_tavg_c"] = mart["avg_tavg_c"].round(2)
+    mart = _add_month_keys(mart)
     return mart.sort_values(["station_id", "year", "month"]).reset_index(drop=True)
 
 
 def build_mart_coverage_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
-    """
-    Grain: station_id + year + element.
-    n_obs vs days in year — rough completeness for portfolio/coverage mart.
-    """
+    """Coverage mart — grain: station_id + year + element_code."""
     df = qc_pass.copy()
     df["year"] = df["date"].dt.year
     g = (
         df.groupby(["station_id", "year", "element"], as_index=False)
         .agg(n_obs=("date", "count"), date_min=("date", "min"), date_max=("date", "max"))
     )
-    # Days in calendar year (ignore leap nuance for ratio denominator use 365/366)
+    g = g.rename(columns={"element": "element_code"})
+
     def days_in_year(y: int) -> int:
         return 366 if (y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)) else 365
 
@@ -259,15 +351,11 @@ def build_mart_coverage_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
     g["completeness"] = (g["n_obs"] / g["days_in_year"]).clip(upper=1.0).round(4)
     g["date_min"] = g["date_min"].dt.strftime("%Y-%m-%d")
     g["date_max"] = g["date_max"].dt.strftime("%Y-%m-%d")
-    return g.sort_values(["station_id", "year", "element"]).reset_index(drop=True)
+    return g.sort_values(["station_id", "year", "element_code"]).reset_index(drop=True)
 
 
 def build_mart_freeze_season_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
-    """
-    Grain: station_id + year (calendar year).
-
-    Simple freeze definitions for portfolio transparency — not NWS climate division product.
-    """
+    """Freeze / growing-season mart — grain: station_id + year."""
     tmin = qc_pass.loc[
         qc_pass["element"] == "TMIN",
         ["station_id", "date", "value"],
@@ -314,10 +402,7 @@ def build_mart_freeze_season_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_mart_extremes_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
-    """
-    Grain: station_id + year.
-    Fixed thresholds — good for charts; document units when publishing.
-    """
+    """Extremes mart — grain: station_id + year (hot/cold/wet day counts)."""
     df = qc_pass.copy()
     df["year"] = df["date"].dt.year
 
@@ -356,7 +441,9 @@ def write_parquet(df: pd.DataFrame, path: Path) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build gold dims/facts/marts from silver QC")
+    parser = argparse.ArgumentParser(
+        description="Build gold star schema (dims+fact) and analytics marts"
+    )
     parser.add_argument(
         "--station",
         action="append",
@@ -381,7 +468,12 @@ def main() -> None:
     station_ids = sorted(qc["station_id"].unique())
     print(f"  stations={len(station_ids)}  qc_pass_rows={len(qc):,}")
 
-    dim = build_dim_station(station_ids)
+    date_min = qc["date"].min()
+    date_max = qc["date"].max()
+    dim_station = build_dim_station(station_ids)
+    dim_date = build_dim_date(date_min, date_max)
+    dim_element = build_dim_element()
+
     fact = None if args.skip_fact else build_fact_observation_daily(qc)
     monthly = build_mart_monthly_climate(qc)
     degree = build_mart_degree_days_monthly(qc, base_c=args.base_c)
@@ -390,7 +482,9 @@ def main() -> None:
     extremes = build_mart_extremes_yearly(qc)
 
     outputs = {
-        "dim_station": write_parquet(dim, GOLD_DIMS / "dim_station.parquet"),
+        "dim_station": write_parquet(dim_station, GOLD_DIMS / "dim_station.parquet"),
+        "dim_date": write_parquet(dim_date, GOLD_DIMS / "dim_date.parquet"),
+        "dim_element": write_parquet(dim_element, GOLD_DIMS / "dim_element.parquet"),
         "mart_monthly_climate": write_parquet(
             monthly, GOLD_MARTS / "mart_monthly_climate.parquet"
         ),
@@ -412,37 +506,34 @@ def main() -> None:
             fact, GOLD_FACTS / "fact_observation_daily.parquet"
         )
 
-    for name, meta in outputs.items():
-        print(f"  {name}: {meta['rows']:,} rows -> {meta['path']}")
+    print("\nStar schema (dims + atomic fact):")
+    for name in ("dim_station", "dim_date", "dim_element", "fact_observation_daily"):
+        if name in outputs:
+            print(f"  {name}: {outputs[name]['rows']:,} rows")
 
-    # Quick sanity peek: latest full year-ish for Asheville if present
+    print("\nMarts (pre-agg for fast viz):")
+    for name, meta in outputs.items():
+        if name.startswith("mart_"):
+            print(f"  {name}: {meta['rows']:,} rows -> {meta['path']}")
+
     if not degree.empty and "USW00013872" in set(degree["station_id"]):
         peek = degree.loc[
             (degree["station_id"] == "USW00013872") & (degree["year"] == 2020)
         ].sort_values("month")
         if not peek.empty:
-            print("\nSample — Asheville 2020 monthly HDD/CDD (base °C =", args.base_c, "):")
+            print("\nSample — Asheville 2020 monthly HDD/CDD:")
             print(
                 peek[
-                    ["year", "month", "hdd_sum", "cdd_sum", "avg_tavg_c", "n_days_both_temps"]
+                    [
+                        "year",
+                        "month",
+                        "year_month_key",
+                        "hdd_sum",
+                        "cdd_sum",
+                        "avg_tavg_c",
+                    ]
                 ].to_string(index=False)
             )
-
-    if not freeze.empty and "USW00013872" in set(freeze["station_id"]):
-        fz = freeze.loc[
-            (freeze["station_id"] == "USW00013872") & (freeze["year"] == 2020)
-        ]
-        if not fz.empty:
-            print("\nSample — Asheville 2020 freeze season:")
-            print(fz.to_string(index=False))
-
-    if not extremes.empty and "USW00013872" in set(extremes["station_id"]):
-        ex = extremes.loc[
-            (extremes["station_id"] == "USW00013872") & (extremes["year"] == 2020)
-        ]
-        if not ex.empty:
-            print("\nSample — Asheville 2020 extremes:")
-            print(ex.to_string(index=False))
 
     META.mkdir(parents=True, exist_ok=True)
     man = {
@@ -450,15 +541,36 @@ def main() -> None:
         "base_c": args.base_c,
         "stations": station_ids,
         "qc_pass_rows": int(len(qc)),
+        "date_min": str(date_min.date()),
+        "date_max": str(date_max.date()),
         "outputs": outputs,
+        "star_schema": {
+            "dims": ["dim_station", "dim_date", "dim_element"],
+            "fact": "fact_observation_daily",
+            "fact_grain": "station_id + date_key + element_code",
+            "keys": {
+                "station_id": "dim_station.station_id",
+                "date_key": "dim_date.date_key (YYYYMMDD int)",
+                "element_code": "dim_element.element_code",
+            },
+        },
+        "viz_guidance": {
+            "prefer_for_dashboards": [
+                "mart_monthly_climate",
+                "mart_degree_days_monthly",
+                "mart_extremes_yearly",
+                "mart_freeze_season_yearly",
+                "dim_station",
+            ],
+            "use_atomic_fact_for": "drill-down, ad-hoc, custom thresholds",
+        },
         "method_notes": {
-            "degree_days": "tavg=(TMAX+TMIN)/2 on days both pass QC; "
-            f"HDD=max(0,base-tavg), CDD=max(0,tavg-base), base_c={args.base_c}",
-            "freeze_season": f"freeze if TMIN<={FREEZE_TMIN_C}; "
-            "last spring freeze month<=6; first fall freeze month>=7",
-            "extremes": f"hot TMAX>={HOT_DAY_TMAX_C}/{VERY_HOT_TMAX_C}; "
-            f"freeze TMIN<={FREEZE_TMIN_C}; wet PRCP>={WET_DAY_PRCP_MM} mm",
-            "qc": "only silver stations_qc rows with qc_pass=True",
+            "degree_days": "tavg=(TMAX+TMIN)/2; "
+            f"HDD/CDD vs base_c={args.base_c}",
+            "freeze_season": f"TMIN<={FREEZE_TMIN_C}; spring month<=6; fall month>=7",
+            "extremes": f"TMAX>={HOT_DAY_TMAX_C}/{VERY_HOT_TMAX_C}; "
+            f"TMIN<={FREEZE_TMIN_C}; PRCP>={WET_DAY_PRCP_MM}",
+            "qc": "only stations_qc rows with qc_pass=True",
         },
     }
     man_path = META / "gold_manifest.json"

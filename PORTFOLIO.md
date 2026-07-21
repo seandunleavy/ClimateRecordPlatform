@@ -20,7 +20,8 @@ End-to-end medallion path on a regional sample (SC / NC / GA):
 2. **Smart station pick** — long-record USW/USC via inventory (TMAX+TMIN+PRCP span), not first IDs in sort  
 3. **Silver** — fixed-width `.dly` → daily typed Parquet; retain M/Q/S flags; scale units  
 4. **QC** — explicit `qc_pass` / `qc_reasons` (missing, NOAA qflag, physical ranges, TMAX&lt;TMIN); no silent deletes  
-5. **Gold marts** — `dim_station`, daily fact, monthly climate, HDD/CDD (base 18 °C), coverage, freeze season, yearly extremes  
+5. **Gold star + marts** — `dim_station` / `dim_date` / `dim_element` + daily fact; pre-agg marts for fast charts (HDD/CDD, freeze, extremes)  
+
 6. **Tests / public site** — dbt + Dunleavy planned  
 
 ---
@@ -42,7 +43,7 @@ NOAA GHCNd → bronze (.dly) → silver (rows) → stations_qc (flags) → gold 
 | Repo + bronze ingest (meta + long-record sample) | ✅ |
 | Silver parse + quality profile | ✅ |
 | Row-level QC + fail export | ✅ |
-| Gold dims / facts / marts (HDD/CDD, coverage, freeze, extremes) | ✅ |
+| Gold star schema + marts (HDD/CDD, coverage, freeze, extremes) | ✅ |
 | dbt + DuckDB tests | ⬜ |
 | Public Dunleavy explorer | ⬜ |
 

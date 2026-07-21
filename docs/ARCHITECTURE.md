@@ -1,6 +1,6 @@
 # Architecture — Climate Record Platform
 
-**Last updated:** 2026-07-21
+**Last updated:** 2026-07-21 (star schema + viz path)
 
 ---
 
@@ -129,19 +129,77 @@ Silver QC **keeps** failed rows for audit. Gold **reads only** `qc_pass == True`
 
 ---
 
-## Gold model (v1 shipped)
+## Gold model — star schema + marts
 
-| Table | Grain | Notes |
-|-------|--------|--------|
-| `dim_station` | station_id | Name, state, lat/lon, elev, network prefix |
-| `fact_observation_daily` | station + date + element | qc_pass only |
-| `mart_monthly_climate` | station + year + month | avg TMAX/TMIN, total PRCP, day counts |
-| `mart_degree_days_monthly` | station + year + month | HDD/CDD sums |
-| `mart_coverage_yearly` | station + year + element | n_obs / days_in_year |
-| `mart_freeze_season_yearly` | station + year | freeze days, spring/fall freeze, growing season length |
-| `mart_extremes_yearly` | station + year | hot/cold/wet day counts + annual max/min |
+Best practice for warehouse **and** fast dashboards:
 
-**Mart vs fact:** a **fact** is detailed observations (daily); a **mart** is a pre-built summary for a business question (charts, APIs).
+```mermaid
+flowchart TB
+  subgraph star [Atomic star - flexible BI]
+    DS[dim_station]
+    DD[dim_date]
+    DE[dim_element]
+    F[fact_observation_daily]
+    DS --> F
+    DD --> F
+    DE --> F
+  end
+  subgraph marts [Pre-agg marts - fast charts]
+    M1[mart_monthly_climate]
+    M2[mart_degree_days_monthly]
+    M3[mart_extremes_yearly]
+    M4[mart_freeze_season_yearly]
+    M5[mart_coverage_yearly]
+  end
+  F --> marts
+```
+
+### Star (atomic)
+
+| Table | Grain / key | Role |
+|-------|-------------|------|
+| `dim_station` | `station_id` | Who/where (name, state, lat/lon, network) |
+| `dim_date` | `date_key` (YYYYMMDD int) | When (year, month, season, weekend, …) |
+| `dim_element` | `element_code` | What was measured (TMAX/TMIN/PRCP + units) |
+| `fact_observation_daily` | **station_id + date_key + element_code** | Measure `value` (+ mflag/sflag degenerate) |
+
+Join pattern (conceptual):
+
+```text
+fact_observation_daily f
+  JOIN dim_station s ON f.station_id = s.station_id
+  JOIN dim_date    d ON f.date_key   = d.date_key
+  JOIN dim_element e ON f.element_code = e.element_code
+```
+
+Natural keys are intentional (GHCNd station IDs and ISO-ish date keys are stable and portable).
+
+### Marts (aggregate facts for visualization)
+
+| Table | Grain | Chart use |
+|-------|--------|-----------|
+| `mart_monthly_climate` | station + year + month (+ `year_month_key`) | Monthly avg temp / rain series |
+| `mart_degree_days_monthly` | station + year + month | HDD/CDD bars / heating season |
+| `mart_coverage_yearly` | station + year + element | Data quality / completeness |
+| `mart_freeze_season_yearly` | station + year | Freeze days, growing season |
+| `mart_extremes_yearly` | station + year | Hot/cold/wet day counts |
+
+**Mart vs fact:** fact = daily detail; mart = pre-summarized for a product question.  
+Marts are still “enterprise” — they are **aggregate fact tables** in a subject mart. Dashboards should prefer marts; use the atomic fact for drill-down or new thresholds.
+
+### Visualization performance (practice)
+
+| Need | Read from | Why fast |
+|------|-----------|----------|
+| Station list / map | `dim_station` | ~15 rows |
+| Monthly HDD chart | `mart_degree_days_monthly` | ~20k rows, not 1.8M |
+| Yearly extremes | `mart_extremes_yearly` | ~2k rows |
+| Custom day filter | `fact_observation_daily` + dims | Full grain; filter by keys |
+| Future SQL speed | DuckDB / Parquet (planned dbt) | Columnar scan + pushdown |
+
+Do **not** chart raw bronze `.dly` or re-parse in the front end.
+
+### Degree-day method (documented)
 
 ### Degree-day method (documented)
 
@@ -169,8 +227,10 @@ Per station-year counts: TMAX ≥ 32 °C / 35 °C; TMIN ≤ 0 °C; PRCP ≥ 25.4
 ### Still planned
 
 - SCD2 on stations if history warrants  
-- dbt + DuckDB models/tests over the same logic  
+- dbt + DuckDB models/tests over the same star (SQL views = same grain)  
 - Richer freeze definitions (winter-spanning seasons) if product needs them  
+- Publish small mart extracts (JSON/Parquet) to Dunleavy for static charts  
+
 
 
 ---
