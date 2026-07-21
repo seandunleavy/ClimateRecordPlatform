@@ -10,6 +10,7 @@ Thumbs.db
 data/bronze/**
 data/silver/**
 data/gold/**
+data/serve/web/by_station/**
 !data/bronze/.gitkeep
 !data/silver/.gitkeep
 !data/gold/.gitkeep

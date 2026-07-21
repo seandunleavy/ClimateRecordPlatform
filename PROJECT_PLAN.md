@@ -41,9 +41,11 @@ PHASE 3 — Gold (v1)
   ✅ dbt + DuckDB: staging + mart models, 29 schema/relationship tests PASS
   ✅ Serve export: full-history mart JSON + Dunleavy explorer
   ✅ Read-only FastAPI over gold marts/facts (DuckDB)
-  ✅ Station sample expanded to 60 long-record USW/USC (SC/NC/GA, 20 each)
-NEXT: more marts/metrics; promote/deploy when ready
+  ✅ Station sample: **all** long-record USW/USC in SC/NC/GA (50+y span) ≈ **323 stations**
+  ✅ ~28M qc_pass daily rows; web loads **per-station** mart JSON (keeps charts fast)
+NEXT: more chart types / marts; promote/deploy when ready
 ```
+
 
 
 

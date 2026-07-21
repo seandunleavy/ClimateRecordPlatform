@@ -1,14 +1,16 @@
 """
 Export JSON from gold marts for static web charts (Dunleavy).
 
-Best practice: charts read pre-aggregated marts, not daily facts or bronze.
+At large station counts, full-history degree-day JSON is tens of MB.
+Default strategy for performance:
+  - stations.json + meta.json (tiny)
+  - per-station files under by_station/{id}/  (load only what the UI selects)
 
-Default: full history (all years) for the station sample.
-Optional: --year 2020 for a single-year slice only.
+Best practice: charts read pre-aggregated marts, not daily facts.
 
 Examples:
-  python -m src.serve.export_web_json --all-years --copy-to-dunleavy
-  python -m src.serve.export_web_json --year 2020 --copy-to-dunleavy
+  python -m src.serve.export_web_json --copy-to-dunleavy
+  python -m src.serve.export_web_json --single-year 2020
 """
 from __future__ import annotations
 
@@ -28,8 +30,6 @@ DUNLEAVY_DATA = Path("data") / "climate-record"
 
 DEGREE_COLS = [
     "station_id",
-    "name",
-    "state",
     "year",
     "month",
     "hdd_sum",
@@ -40,8 +40,6 @@ DEGREE_COLS = [
 ]
 EXTREMES_COLS = [
     "station_id",
-    "name",
-    "state",
     "year",
     "n_days_tmax_ge_32c",
     "n_days_tmax_ge_35c",
@@ -53,8 +51,6 @@ EXTREMES_COLS = [
 ]
 FREEZE_COLS = [
     "station_id",
-    "name",
-    "state",
     "year",
     "n_freeze_days",
     "last_spring_freeze",
@@ -64,26 +60,17 @@ FREEZE_COLS = [
 ]
 
 
-def _json_default(obj: object) -> object:
-    """Pandas may emit NaN/NaT; standard JSON has no NaN — use null."""
-    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
-
 def _sanitize_for_json(payload: object) -> object:
-    """Replace NaN/NaT/NA with None so json.dumps emits valid null."""
     if isinstance(payload, list):
         return [_sanitize_for_json(x) for x in payload]
     if isinstance(payload, dict):
         return {k: _sanitize_for_json(v) for k, v in payload.items()}
-    # float NaN / inf
     try:
         if payload != payload:  # NaN
             return None
     except Exception:
         pass
-    if payload is pd.NaT:
-        return None
-    if payload is pd.NA:
+    if payload is pd.NaT or payload is pd.NA:
         return None
     return payload
 
@@ -107,86 +94,96 @@ def _load_frames() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFra
     return stations, degree, extremes, freeze
 
 
-def _stations_payload(stations: pd.DataFrame) -> list[dict]:
-    return (
+def export_all_years() -> dict:
+    """Full-history mart JSON: stations index + per-station mart files."""
+    stations, degree, extremes, freeze = _load_frames()
+
+    stations_out = (
         stations.sort_values(["state", "name"])
         .loc[:, ["station_id", "name", "state", "latitude", "longitude", "network_prefix"]]
         .to_dict(orient="records")
     )
 
-
-def _degree_payload(degree: pd.DataFrame, stations: pd.DataFrame) -> list[dict]:
-    deg = degree.merge(
-        stations[["station_id", "name", "state"]],
-        on="station_id",
-        how="left",
-    )
-    return (
-        deg.sort_values(["station_id", "year", "month"])
-        .loc[:, DEGREE_COLS]
-        .to_dict(orient="records")
-    )
-
-
-def _extremes_payload(extremes: pd.DataFrame, stations: pd.DataFrame) -> list[dict]:
-    ext = extremes.merge(
-        stations[["station_id", "name", "state"]],
-        on="station_id",
-        how="left",
-    )
-    return (
-        ext.sort_values(["station_id", "year"])
-        .loc[:, EXTREMES_COLS]
-        .to_dict(orient="records")
-    )
-
-
-def _freeze_payload(freeze: pd.DataFrame, stations: pd.DataFrame) -> list[dict]:
-    fr = freeze.merge(
-        stations[["station_id", "name", "state"]],
-        on="station_id",
-        how="left",
-    )
-    return (
-        fr.sort_values(["station_id", "year"])
-        .loc[:, FREEZE_COLS]
-        .to_dict(orient="records")
-    )
-
-
-def export_all_years() -> dict:
-    """Full-history mart JSON for the web explorer (still tiny vs daily facts)."""
-    stations, degree, extremes, freeze = _load_frames()
-    stations_out = _stations_payload(stations)
-    degree_out = _degree_payload(degree, stations)
-    extremes_out = _extremes_payload(extremes, stations)
-    freeze_out = _freeze_payload(freeze, stations)
-
     year_min = int(min(degree["year"].min(), extremes["year"].min()))
     year_max = int(max(degree["year"].max(), extremes["year"].max()))
 
+    SERVE_WEB.mkdir(parents=True, exist_ok=True)
+    by_station = SERVE_WEB / "by_station"
+    if by_station.exists():
+        shutil.rmtree(by_station)
+    by_station.mkdir(parents=True, exist_ok=True)
+
+    print(f"Export ALL YEARS ({year_min}-{year_max}) per-station -> {SERVE_WEB}")
+    _write_json(SERVE_WEB / "stations.json", stations_out, compact=False)
+
+    # Optional small network summary for multi-station charts (latest year extremes)
+    latest = int(extremes["year"].max())
+    summary = extremes.loc[extremes["year"] == latest].merge(
+        stations[["station_id", "name", "state"]], on="station_id", how="left"
+    )
+    summary_out = (
+        summary.sort_values(["state", "name"])
+        .loc[
+            :,
+            [
+                "station_id",
+                "name",
+                "state",
+                "year",
+                "n_days_tmax_ge_32c",
+                "n_days_tmin_le_0c",
+                "n_days_prcp_ge_25mm",
+                "max_tmax_c",
+                "min_tmin_c",
+            ],
+        ]
+        .to_dict(orient="records")
+    )
+    _write_json(SERVE_WEB / f"network_extremes_{latest}.json", summary_out)
+    _write_json(SERVE_WEB / "network_extremes_latest.json", summary_out)
+
+    n_files = 0
+    for sid, g_deg in degree.groupby("station_id"):
+        folder = by_station / str(sid)
+        deg_rows = g_deg.sort_values(["year", "month"]).loc[:, DEGREE_COLS].to_dict(orient="records")
+        ext_rows = (
+            extremes.loc[extremes["station_id"] == sid]
+            .sort_values("year")
+            .loc[:, EXTREMES_COLS]
+            .to_dict(orient="records")
+        )
+        fr_rows = (
+            freeze.loc[freeze["station_id"] == sid]
+            .sort_values("year")
+            .loc[:, FREEZE_COLS]
+            .to_dict(orient="records")
+        )
+        _write_json(folder / "degree_days_monthly.json", deg_rows)
+        _write_json(folder / "extremes_yearly.json", ext_rows)
+        _write_json(folder / "freeze_yearly.json", fr_rows)
+        n_files += 3
+
     meta = {
         "exported_at_utc": datetime.now(timezone.utc).isoformat(),
-        "mode": "all_years",
+        "mode": "all_years_per_station",
         "year_min": year_min,
         "year_max": year_max,
         "station_count": len(stations_out),
-        "row_counts": {
-            "degree_days_monthly": len(degree_out),
-            "extremes_yearly": len(extremes_out),
-            "freeze_yearly": len(freeze_out),
-        },
-        "files": {
+        "layout": {
             "stations": "stations.json",
-            "degree_days_monthly": "degree_days_monthly.json",
-            "extremes_yearly": "extremes_yearly.json",
-            "freeze_yearly": "freeze_yearly.json",
+            "per_station_dir": "by_station/{station_id}/",
+            "files_per_station": [
+                "degree_days_monthly.json",
+                "extremes_yearly.json",
+                "freeze_yearly.json",
+            ],
+            "network_extremes_latest": "network_extremes_latest.json",
         },
-        "sources": {
-            "dim_station": "data/gold/dims/dim_station.parquet",
-            "mart_degree_days_monthly": "data/gold/marts/mart_degree_days_monthly.parquet",
-            "mart_extremes_yearly": "data/gold/marts/mart_extremes_yearly.parquet",
-            "mart_freeze_season_yearly": "data/gold/marts/mart_freeze_season_yearly.parquet",
+        "row_counts": {
+            "degree_days_monthly": int(len(degree)),
+            "extremes_yearly": int(len(extremes)),
+            "freeze_yearly": int(len(freeze)),
+            "per_station_json_files": n_files,
         },
         "methods": {
             "qc": "Gold uses silver stations_qc rows with qc_pass=True only",
@@ -196,143 +193,100 @@ def export_all_years() -> dict:
         },
         "scope": (
             "South Carolina, North Carolina, Georgia long-record USW/USC sample "
-            "— portfolio demo, not a national NCEI product"
+            "(50+ year TMAX+TMIN+PRCP overlap) — portfolio demo, not a national NCEI product"
+        ),
+        "performance_note": (
+            "UI should load stations.json once, then only by_station/{id}/*.json for the selected station"
         ),
     }
-
-    SERVE_WEB.mkdir(parents=True, exist_ok=True)
-    print(f"Export ALL YEARS ({year_min}-{year_max}) -> {SERVE_WEB}")
-    _write_json(SERVE_WEB / "stations.json", stations_out)
-    _write_json(SERVE_WEB / "degree_days_monthly.json", degree_out)
-    _write_json(SERVE_WEB / "extremes_yearly.json", extremes_out)
-    _write_json(SERVE_WEB / "freeze_yearly.json", freeze_out)
     _write_json(SERVE_WEB / "meta.json", meta, compact=False)
 
-    _write_manifest(meta)
+    man = {
+        "built_at_utc": meta["exported_at_utc"],
+        "mode": meta["mode"],
+        "station_count": meta["station_count"],
+        "serve_dir": str(SERVE_WEB),
+        "meta": meta,
+    }
+    META.mkdir(parents=True, exist_ok=True)
+    (META / "serve_web_manifest.json").write_text(json.dumps(man, indent=2), encoding="utf-8")
+    print(f"manifest: {META / 'serve_web_manifest.json'}")
+    print(f"stations={len(stations_out)}  per-station file groups={len(stations_out)}")
     return meta
 
 
 def export_year(year: int) -> dict:
-    """Single calendar-year slice (legacy demo files)."""
+    """Single-year combined files (legacy / small demos)."""
     stations, degree, extremes, freeze = _load_frames()
-    stations_out = _stations_payload(stations)
-
-    degree_out = _degree_payload(degree.loc[degree["year"] == year], stations)
-    extremes_out = _extremes_payload(extremes.loc[extremes["year"] == year], stations)
-    freeze_out = _freeze_payload(freeze.loc[freeze["year"] == year], stations)
-
+    stations_out = (
+        stations.sort_values(["state", "name"])
+        .loc[:, ["station_id", "name", "state", "latitude", "longitude", "network_prefix"]]
+        .to_dict(orient="records")
+    )
+    deg = degree.loc[degree["year"] == year].merge(
+        stations[["station_id", "name", "state"]], on="station_id", how="left"
+    )
+    ext = extremes.loc[extremes["year"] == year].merge(
+        stations[["station_id", "name", "state"]], on="station_id", how="left"
+    )
+    fr = freeze.loc[freeze["year"] == year].merge(
+        stations[["station_id", "name", "state"]], on="station_id", how="left"
+    )
+    SERVE_WEB.mkdir(parents=True, exist_ok=True)
+    _write_json(SERVE_WEB / "stations.json", stations_out, compact=False)
+    _write_json(
+        SERVE_WEB / f"degree_days_{year}.json",
+        deg.sort_values(["state", "name", "month"]).to_dict(orient="records"),
+        compact=False,
+    )
+    _write_json(
+        SERVE_WEB / f"extremes_{year}.json",
+        ext.sort_values(["state", "name"]).to_dict(orient="records"),
+        compact=False,
+    )
+    _write_json(
+        SERVE_WEB / f"freeze_{year}.json",
+        fr.sort_values(["state", "name"]).to_dict(orient="records"),
+        compact=False,
+    )
     meta = {
-        "exported_at_utc": datetime.now(timezone.utc).isoformat(),
         "mode": "single_year",
         "year": year,
         "station_count": len(stations_out),
-        "methods": {
-            "qc": "Gold uses silver stations_qc rows with qc_pass=True only",
-            "degree_days": "tavg=(TMAX+TMIN)/2; heating/cooling degree-days vs base 18 C",
-        },
-        "scope": "South Carolina, North Carolina, Georgia long-record sample",
+        "exported_at_utc": datetime.now(timezone.utc).isoformat(),
     }
-
-    SERVE_WEB.mkdir(parents=True, exist_ok=True)
-    print(f"Export year={year} -> {SERVE_WEB}")
-    _write_json(SERVE_WEB / "stations.json", stations_out)
-    _write_json(SERVE_WEB / f"degree_days_{year}.json", degree_out, compact=False)
-    _write_json(SERVE_WEB / f"extremes_{year}.json", extremes_out, compact=False)
-    _write_json(SERVE_WEB / f"freeze_{year}.json", freeze_out, compact=False)
     _write_json(SERVE_WEB / "meta.json", meta, compact=False)
-    _write_manifest(meta)
     return meta
 
 
-def _write_manifest(meta: dict) -> None:
-    META.mkdir(parents=True, exist_ok=True)
-    man = {
-        "built_at_utc": meta.get("exported_at_utc"),
-        "mode": meta.get("mode"),
-        "serve_dir": str(SERVE_WEB),
-        "files": [p.name for p in sorted(SERVE_WEB.glob("*.json"))],
-        "meta": meta,
-    }
-    man_path = META / "serve_web_manifest.json"
-    man_path.write_text(json.dumps(man, indent=2), encoding="utf-8")
-    print(f"manifest: {man_path}")
-
-
-def copy_to_dunleavy(dunleavy_root: Path, *, all_years: bool, year: int | None) -> Path:
+def copy_to_dunleavy(dunleavy_root: Path) -> Path:
     dest = dunleavy_root / DUNLEAVY_DATA
-    dest.mkdir(parents=True, exist_ok=True)
-    if all_years:
-        names = [
-            "stations.json",
-            "meta.json",
-            "degree_days_monthly.json",
-            "extremes_yearly.json",
-            "freeze_yearly.json",
-        ]
-    else:
-        y = year or 2020
-        names = [
-            "stations.json",
-            "meta.json",
-            f"degree_days_{y}.json",
-            f"extremes_{y}.json",
-            f"freeze_{y}.json",
-        ]
-    for name in names:
-        src = SERVE_WEB / name
-        if src.exists():
-            shutil.copy2(src, dest / name)
-            print(f"  copy -> {dest / name}")
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(SERVE_WEB, dest)
+    print(f"  copied tree -> {dest}")
     return dest
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export gold marts to web JSON")
-    parser.add_argument(
-        "--all-years",
-        action="store_true",
-        default=True,
-        help="Export full history (default). Preferred for the explorer demo.",
-    )
-    parser.add_argument(
-        "--single-year",
-        type=int,
-        default=None,
-        metavar="YEAR",
-        help="Export only one calendar year instead of full history",
-    )
-    parser.add_argument(
-        "--year",
-        type=int,
-        default=None,
-        help="Deprecated alias for --single-year",
-    )
-    parser.add_argument(
-        "--copy-to-dunleavy",
-        action="store_true",
-        help="Copy JSON into dunleavyorganization.com/data/climate-record/",
-    )
-    parser.add_argument(
-        "--dunleavy-root",
-        type=Path,
-        default=DEFAULT_DUNLEAVY,
-        help="Path to dunleavyorganization.com repo",
-    )
+    parser.add_argument("--single-year", type=int, default=None, metavar="YEAR")
+    parser.add_argument("--year", type=int, default=None, help="Alias for --single-year")
+    parser.add_argument("--copy-to-dunleavy", action="store_true")
+    parser.add_argument("--dunleavy-root", type=Path, default=DEFAULT_DUNLEAVY)
     args = parser.parse_args()
 
     single = args.single_year if args.single_year is not None else args.year
     if single is not None:
         export_year(single)
-        all_years = False
     else:
         export_all_years()
-        all_years = True
 
     if args.copy_to_dunleavy:
         if not args.dunleavy_root.exists():
             raise SystemExit(f"Dunleavy root not found: {args.dunleavy_root}")
         print(f"Copy to Dunleavy: {args.dunleavy_root}")
-        copy_to_dunleavy(args.dunleavy_root, all_years=all_years, year=single)
+        copy_to_dunleavy(args.dunleavy_root)
 
 
 if __name__ == "__main__":
