@@ -39,10 +39,11 @@ PHASE 3 — Gold (v1)
   ✅ Gold star: dim_station, dim_date, dim_element, fact_observation_daily
   ✅ Marts: monthly climate, HDD/CDD, coverage, freeze, extremes
   ✅ dbt + DuckDB: staging + mart models, 29 schema/relationship tests PASS
-  ✅ Serve export: small JSON from gold marts (`src/serve/export_web_json.py`)
-  ✅ Dunleavy draft page: project-climate-record.html (charts from marts)
-NEXT: local preview → user approve → deploy Dunleavy; link from projects.html
+  ✅ Serve export: full-history mart JSON + Dunleavy explorer (station + year range)
+  ✅ Draft page performs well on pre-aggregated marts
+NEXT: optional API (step 3); more stations (step 4); promote/deploy when ready
 ```
+
 
 
 

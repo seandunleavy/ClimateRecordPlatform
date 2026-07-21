@@ -57,8 +57,10 @@ python -m src.transform.silver_quality_check
 python -m src.transform.export_qc_fails
 
 # static web export (optional copy into Dunleavy data/)
-python -m src.serve.export_web_json --year 2020 --copy-to-dunleavy
+python -m src.serve.export_web_json --copy-to-dunleavy
+# full multi-decade mart JSON (default). Single year: --single-year 2020
 ```
+
 
 
 

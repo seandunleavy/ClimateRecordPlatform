@@ -1,7 +1,20 @@
 {
-  "exported_at_utc": "2026-07-21T17:40:35.785578+00:00",
-  "year": 2020,
+  "exported_at_utc": "2026-07-21T18:23:42.257471+00:00",
+  "mode": "all_years",
+  "year_min": 1849,
+  "year_max": 2026,
   "station_count": 15,
+  "row_counts": {
+    "degree_days_monthly": 19628,
+    "extremes_yearly": 1861,
+    "freeze_yearly": 1710
+  },
+  "files": {
+    "stations": "stations.json",
+    "degree_days_monthly": "degree_days_monthly.json",
+    "extremes_yearly": "extremes_yearly.json",
+    "freeze_yearly": "freeze_yearly.json"
+  },
   "sources": {
     "dim_station": "data/gold/dims/dim_station.parquet",
     "mart_degree_days_monthly": "data/gold/marts/mart_degree_days_monthly.parquet",
@@ -10,9 +23,9 @@
   },
   "methods": {
     "qc": "Gold uses silver stations_qc rows with qc_pass=True only",
-    "degree_days": "tavg=(TMAX+TMIN)/2; HDD/CDD vs base 18 C; monthly sums",
+    "degree_days": "tavg=(TMAX+TMIN)/2; heating/cooling degree-days vs base 18 C; monthly sums",
     "extremes": "Hot TMAX>=32/35 C; freeze TMIN<=0 C; wet PRCP>=25.4 mm",
     "freeze_season": "Freeze TMIN<=0; last spring freeze month<=6; first fall month>=7"
   },
-  "scope": "SC, NC, GA long-record USW/USC sample \u2014 portfolio demo, not full NCEI product"
+  "scope": "South Carolina, North Carolina, Georgia long-record USW/USC sample \u2014 portfolio demo, not a national NCEI product"
 }
