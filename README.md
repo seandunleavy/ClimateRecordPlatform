@@ -6,7 +6,7 @@
 **Is** bronze → silver → QC → gold (star + marts), dbt tests, and mart-driven charts / optional API.
 
 **Owner:** Sean Dunleavy / The Dunleavy Organization, LLC  
-**Version:** **v1.0.0** (regional long-record platform) — tag `v1.0.0`  
+**Version:** **v1.1.0** (explorer chart pack on v1.0 platform) — tags `v1.0.0`, `v1.1.0`  
 **Career plan pointer:** `GitProjects/career/projects/` (priorities)
 
 ---
@@ -21,15 +21,16 @@
 
 ## Status
 
-**v1.0 complete.** See **YOU ARE HERE** and roadmap in [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
+**v1.1 complete** (platform + multi-chart explorer). See [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
 
-| v1.0 highlight | Approx. |
-|----------------|---------|
+| Highlight | Approx. |
+|-----------|---------|
 | Long-record stations (SC/NC/GA, USW/USC, 50+y) | **~323** |
 | Quality-pass daily observations | **~28M** |
 | dbt tests | **29 PASS** |
+| Explorer | Multi-chart + ranks + thematic map |
 
-Next in-repo: **v1.1** more charts; **v1.2** public Dunleavy link; **v2** nationwide long-record.
+Next: **v1.2** public Dunleavy link; **v2** nationwide long-record.
 
 ---
 

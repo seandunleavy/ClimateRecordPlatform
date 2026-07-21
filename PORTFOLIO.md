@@ -1,7 +1,7 @@
 # Climate Record Platform — Portfolio case study
 
-**Status:** **v1.0 complete** (regional long-record platform)  
-**Version tag:** `v1.0.0`  
+**Status:** **v1.1 complete** (v1.0 platform + multi-chart explorer)  
+**Version tags:** `v1.0.0` (platform), `v1.1.0` (explorer charts)  
 **Live URL:** Draft explorer locally / Dunleavy draft page (production link TBD — v1.2)  
 **Role:** Solo data engineer / builder  
 **Repo:** https://github.com/seandunleavy/ClimateRecordPlatform  
@@ -24,7 +24,8 @@ End-to-end medallion platform on a **complete regional long-record sample**:
 4. **QC** — `qc_pass` / `qc_reasons` (missing, NOAA qflag, physical ranges, TMAX&lt;TMIN); no silent deletes  
 5. **Gold star + marts** — dims + daily fact; monthly climate, heating/cooling degree-days, extremes, freeze season, coverage  
 6. **dbt + DuckDB** — SQL models + uniqueness / relationship tests  
-7. **Serve** — per-station mart JSON for a fast Chart.js explorer; optional read-only FastAPI for on-demand slices  
+7. **Serve** — per-station mart JSON for a fast multi-chart explorer (degree-days, extremes, precip, completeness, ranks, thematic station map); optional read-only FastAPI  
+
 
 ---
 
@@ -62,7 +63,8 @@ Enterprise **patterns** at portfolio-honest volume — not petabyte claims.
 | Row-level QC + fail export | ✅ |
 | Gold star schema + marts | ✅ |
 | dbt + DuckDB tests | ✅ |
-| Fast mart-based explorer + optional API | ✅ |
+| Fast mart-based explorer + optional API | ✅ v1.0 |
+| Multi-chart explorer + thematic map | ✅ v1.1 |
 | Production Dunleavy link | ⬜ v1.2 |
 | Nationwide sample | ⬜ v2 |
 
@@ -93,7 +95,7 @@ Enterprise **patterns** at portfolio-honest volume — not petabyte claims.
 
 ## Roadmap (same repo)
 
-- **v1.1** — more charts and interactions from existing marts  
+- **v1.1** — more charts / ranks / thematic map ✅  
 - **v1.2** — public Dunleavy case study link  
 - **v2** — nationwide long-record expansion (planned)  
 
