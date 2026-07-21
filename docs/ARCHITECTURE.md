@@ -224,12 +224,29 @@ Monthly marts **sum** daily HDD/CDD. Method is simple and explicit — not a ful
 
 Per station-year counts: TMAX ≥ 32 °C / 35 °C; TMIN ≤ 0 °C; PRCP ≥ 25.4 mm; plus annual max TMAX, min TMIN, max daily PRCP.
 
+### dbt + DuckDB (SQL layer)
+
+| Piece | Role |
+|-------|------|
+| `dbt/` | dbt project + local `profiles.yml` (no secrets) |
+| `data/gold/climate_record.duckdb` | DuckDB database materializing models |
+| Staging models | `read_parquet(...)` over gold Parquet |
+| Mart models | Tables for SQL consumers + **dbt tests** (unique, not_null, relationships) |
+
+```powershell
+# From repo root, venv active
+dbt run --project-dir dbt --profiles-dir dbt
+dbt test --project-dir dbt --profiles-dir dbt
+```
+
+**Division of labor:** Python builds gold Parquet (ingest/QC/metrics methods). dbt owns SQL packaging + data tests (portfolio DE skill).
+
 ### Still planned
 
 - SCD2 on stations if history warrants  
-- dbt + DuckDB models/tests over the same star (SQL views = same grain)  
 - Richer freeze definitions (winter-spanning seasons) if product needs them  
 - Publish small mart extracts (JSON/Parquet) to Dunleavy for static charts  
+
 
 
 

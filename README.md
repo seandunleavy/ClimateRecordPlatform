@@ -45,9 +45,15 @@ python -m src.transform.apply_qc --all
 
 # 4) Gold — dims / facts / marts from qc_pass only
 python -m src.transform.silver_to_gold
+
+# 5) dbt + DuckDB — SQL star/marts + tests (run from repo root)
+.\.venv\Scripts\dbt.exe run --project-dir dbt --profiles-dir dbt
+.\.venv\Scripts\dbt.exe test --project-dir dbt --profiles-dir dbt
 ```
 
-Data lands under `data/` (gitignored payloads). Run manifests under `data/meta/`.
+Data lands under `data/` (gitignored payloads). DuckDB file: `data/gold/climate_record.duckdb`. Run manifests under `data/meta/`.
+
+**Requires:** activate venv first; packages in `requirements.txt` include `duckdb`, `dbt-core`, `dbt-duckdb`.
 
 ### Useful extras
 

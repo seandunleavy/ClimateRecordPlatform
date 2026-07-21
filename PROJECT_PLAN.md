@@ -38,8 +38,10 @@ PHASE 3 — Gold (v1)
   ✅ QC: qc_pass / qc_reasons on silver; export fails to CSV
   ✅ Gold star: dim_station, dim_date, dim_element, fact_observation_daily
   ✅ Marts: monthly climate, HDD/CDD, coverage, freeze, extremes
-NEXT: dbt + DuckDB tests; then serve / Dunleavy (charts from marts)
+  ✅ dbt + DuckDB: staging + mart models, 29 schema/relationship tests PASS
+NEXT: serve / Dunleavy charts from marts (or more dbt models)
 ```
+
 
 
 
@@ -71,7 +73,8 @@ NEXT: dbt + DuckDB tests; then serve / Dunleavy (charts from marts)
 - [x] Atomic fact: `fact_observation_daily` (station + date_key + element_code)  
 - [x] Marts: monthly climate, HDD/CDD, coverage, freeze, extremes  
 - [ ] SCD2 on stations if needed  
-- [ ] dbt + DuckDB models + tests over star + marts  
+- [x] dbt + DuckDB models + tests over star + marts (initial)  
+
 
 
 

@@ -1,0 +1,25 @@
+# Climate Record Platform — dbt project (DuckDB)
+# Best practice: SQL models + tests over gold star/marts for portfolio DE skills.
+# Python still owns bronze→silver→QC→gold Parquet; dbt owns SQL layer + tests.
+
+name: climate_record
+version: 1.0.0
+config-version: 2
+profile: climate_record
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+analysis-paths: ["analyses"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  climate_record:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts

@@ -1,0 +1,13 @@
+# Local profiles for this project (committed: no secrets).
+# Run from repo with:  dbt run --project-dir dbt --profiles-dir dbt
+#
+# DuckDB file is regenerable under data/gold/ (gitignored with gold/*).
+
+climate_record:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Relative to shell cwd — always run dbt from repo root (ClimateRecordPlatform)
+      path: data/gold/climate_record.duckdb
+      threads: 4

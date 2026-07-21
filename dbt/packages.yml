@@ -1,0 +1,2 @@
+# Optional packages — add when needed (e.g. dbt_utils). Keep lean for now.
+packages: []

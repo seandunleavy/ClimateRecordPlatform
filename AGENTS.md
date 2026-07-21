@@ -26,7 +26,8 @@ When choosing next work: prefer changes that strengthen the portfolio story (tes
 
 - Python under `src/ingest/` and `src/transform/`  
 - Data under `data/` (bronze / silver / silver_qc / gold) — **do not commit large raw payloads**  
-- dbt + DuckDB planned under `dbt/`  
+- dbt + DuckDB under `dbt/` (SQL layer + tests over gold Parquet)  
+
 
 ## Code style (readability)
 
@@ -47,10 +48,15 @@ python -m src.transform.bronze_to_silver --from-manifest
 python -m src.transform.apply_qc --all
 python -m src.transform.silver_to_gold
 
+# dbt (always from repo root)
+.\.venv\Scripts\dbt.exe run --project-dir dbt --profiles-dir dbt
+.\.venv\Scripts\dbt.exe test --project-dir dbt --profiles-dir dbt
+
 # optional review
 python -m src.transform.silver_quality_check
 python -m src.transform.export_qc_fails
 ```
+
 
 ## Docs on change
 
