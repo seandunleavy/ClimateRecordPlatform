@@ -99,7 +99,7 @@ def export_all_years() -> dict:
     stations, degree, extremes, freeze = _load_frames()
 
     stations_out = (
-        stations.sort_values(["state", "name"])
+        stations.sort_values(["name", "state"])
         .loc[:, ["station_id", "name", "state", "latitude", "longitude", "network_prefix"]]
         .to_dict(orient="records")
     )
@@ -219,7 +219,7 @@ def export_year(year: int) -> dict:
     """Single-year combined files (legacy / small demos)."""
     stations, degree, extremes, freeze = _load_frames()
     stations_out = (
-        stations.sort_values(["state", "name"])
+        stations.sort_values(["name", "state"])
         .loc[:, ["station_id", "name", "state", "latitude", "longitude", "network_prefix"]]
         .to_dict(orient="records")
     )
