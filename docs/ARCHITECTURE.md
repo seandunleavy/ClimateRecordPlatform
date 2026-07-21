@@ -241,11 +241,22 @@ dbt test --project-dir dbt --profiles-dir dbt
 
 **Division of labor:** Python builds gold Parquet (ingest/QC/metrics methods). dbt owns SQL packaging + data tests (portfolio DE skill).
 
+### Serve (static web)
+
+| Piece | Role |
+|-------|------|
+| `python -m src.serve.export_web_json` | Gold marts → small JSON under `data/serve/web/` |
+| `--copy-to-dunleavy` | Copies into `dunleavyorganization.com/data/climate-record/` |
+| `project-climate-record.html` | Draft Dunleavy page: Chart.js over mart JSON + methods |
+
+Charts never read bronze `.dly` or the full daily fact in the browser.
+
 ### Still planned
 
 - SCD2 on stations if history warrants  
 - Richer freeze definitions (winter-spanning seasons) if product needs them  
-- Publish small mart extracts (JSON/Parquet) to Dunleavy for static charts  
+- Production link from Dunleavy `projects.html` after approve + deploy  
+
 
 
 

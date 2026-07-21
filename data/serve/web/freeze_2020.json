@@ -1,0 +1,145 @@
+[
+  {
+    "station_id": "USC00092266",
+    "name": "CORDELE",
+    "state": "GA",
+    "year": 2020,
+    "n_freeze_days": 29,
+    "last_spring_freeze": "2020-03-01",
+    "first_fall_freeze": "2020-11-03",
+    "growing_season_days": 247.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00092966",
+    "name": "EASTMAN 1 W",
+    "state": "GA",
+    "year": 2020,
+    "n_freeze_days": 26,
+    "last_spring_freeze": "2020-03-08",
+    "first_fall_freeze": "2020-11-19",
+    "growing_season_days": 256.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00093060",
+    "name": "ELBERTON 2 N",
+    "state": "GA",
+    "year": 2020,
+    "n_freeze_days": 67,
+    "last_spring_freeze": "2020-04-11",
+    "first_fall_freeze": "2020-11-02",
+    "growing_season_days": 205.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00093621",
+    "name": "GAINESVILLE",
+    "state": "GA",
+    "year": 2020,
+    "n_freeze_days": 37,
+    "last_spring_freeze": "2020-03-08",
+    "first_fall_freeze": "2020-12-01",
+    "growing_season_days": 268.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00094170",
+    "name": "HAWKINSVILLE",
+    "state": "GA",
+    "year": 2020,
+    "n_freeze_days": 40,
+    "last_spring_freeze": "2020-03-04",
+    "first_fall_freeze": "2020-11-03",
+    "growing_season_days": 244.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USW00013872",
+    "name": "ASHEVILLE",
+    "state": "NC",
+    "year": 2020,
+    "n_freeze_days": 65,
+    "last_spring_freeze": "2020-05-10",
+    "first_fall_freeze": "2020-11-02",
+    "growing_season_days": 176.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00311677",
+    "name": "CHAPEL HILL 2 W",
+    "state": "NC",
+    "year": 2020,
+    "n_freeze_days": 54,
+    "last_spring_freeze": "2020-03-09",
+    "first_fall_freeze": "2020-11-18",
+    "growing_season_days": 254.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00313228",
+    "name": "FRANKLIN",
+    "state": "NC",
+    "year": 2020,
+    "n_freeze_days": 93,
+    "last_spring_freeze": "2020-05-07",
+    "first_fall_freeze": "2020-10-18",
+    "growing_season_days": 164.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00316001",
+    "name": "MURPHY 4ESE",
+    "state": "NC",
+    "year": 2020,
+    "n_freeze_days": 95,
+    "last_spring_freeze": "2020-05-10",
+    "first_fall_freeze": "2020-10-17",
+    "growing_season_days": 160.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00318500",
+    "name": "TARBORO 1 S",
+    "state": "NC",
+    "year": 2020,
+    "n_freeze_days": 61,
+    "last_spring_freeze": "2020-03-09",
+    "first_fall_freeze": "2020-11-18",
+    "growing_season_days": 254.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00381588",
+    "name": "CHERAW",
+    "state": "SC",
+    "year": 2020,
+    "n_freeze_days": 54,
+    "last_spring_freeze": "2020-03-10",
+    "first_fall_freeze": "2020-11-03",
+    "growing_season_days": 238.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USW00013782",
+    "name": "DWTN CHARLESTON",
+    "state": "SC",
+    "year": 2020,
+    "n_freeze_days": 2,
+    "last_spring_freeze": "2020-02-22",
+    "first_fall_freeze": "2020-12-26",
+    "growing_season_days": 308.0,
+    "freeze_threshold_c": 0.0
+  },
+  {
+    "station_id": "USC00386209",
+    "name": "NEWBERRY",
+    "state": "SC",
+    "year": 2020,
+    "n_freeze_days": 47,
+    "last_spring_freeze": "2020-03-09",
+    "first_fall_freeze": "2020-11-03",
+    "growing_season_days": 239.0,
+    "freeze_threshold_c": 0.0
+  }
+]

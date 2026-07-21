@@ -16,6 +16,8 @@ SILVER_STATIONS_QC = SILVER / "stations_qc"
 GOLD_DIMS = GOLD / "dims"
 GOLD_FACTS = GOLD / "facts"
 GOLD_MARTS = GOLD / "marts"
+SERVE = DATA / "serve"
+SERVE_WEB = SERVE / "web"
 
 # NOAA GHCNd public bulk root
 GHCND_BASE = "https://www.ncei.noaa.gov/pub/data/ghcn/daily"

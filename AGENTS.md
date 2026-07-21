@@ -15,7 +15,7 @@ This repo must showcase **best practices first**, with **modern tools when they 
 | Medallion | bronze → silver → silver_qc → gold |
 | Star schema | `dim_station`, `dim_date`, `dim_element` + `fact_observation_daily` |
 | QC without silent deletes | `qc_pass` / `qc_reasons`; gold uses pass only |
-| Fast viz | charts from **marts**, not raw `.dly` or full daily fact by default |
+| Fast viz | charts from **marts** → small JSON under `data/serve/web` → Dunleavy page |
 | Documented methods | HDD base, freeze defs, extremes thresholds in ARCHITECTURE |
 | Modern stack | Python + Parquet now; **dbt + DuckDB** next when it adds SQL/tests/speed |
 | Honest scale | regional long-record sample — enterprise *patterns*, not petabyte claims |
@@ -55,7 +55,11 @@ python -m src.transform.silver_to_gold
 # optional review
 python -m src.transform.silver_quality_check
 python -m src.transform.export_qc_fails
+
+# static web export (optional copy into Dunleavy data/)
+python -m src.serve.export_web_json --year 2020 --copy-to-dunleavy
 ```
+
 
 
 ## Docs on change

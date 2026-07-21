@@ -1,0 +1,122 @@
+[
+  {
+    "station_id": "USC00092266",
+    "name": "CORDELE",
+    "state": "GA",
+    "latitude": 31.985,
+    "longitude": -83.7747,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00092966",
+    "name": "EASTMAN 1 W",
+    "state": "GA",
+    "latitude": 32.2003,
+    "longitude": -83.2058,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00093060",
+    "name": "ELBERTON 2 N",
+    "state": "GA",
+    "latitude": 34.1408,
+    "longitude": -82.855,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00093621",
+    "name": "GAINESVILLE",
+    "state": "GA",
+    "latitude": 34.3006,
+    "longitude": -83.86,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00094170",
+    "name": "HAWKINSVILLE",
+    "state": "GA",
+    "latitude": 32.2964,
+    "longitude": -83.4883,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USW00013872",
+    "name": "ASHEVILLE",
+    "state": "NC",
+    "latitude": 35.5953,
+    "longitude": -82.5567,
+    "network_prefix": "USW"
+  },
+  {
+    "station_id": "USC00311677",
+    "name": "CHAPEL HILL 2 W",
+    "state": "NC",
+    "latitude": 35.9086,
+    "longitude": -79.0797,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00313228",
+    "name": "FRANKLIN",
+    "state": "NC",
+    "latitude": 35.1803,
+    "longitude": -83.3931,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00316001",
+    "name": "MURPHY 4ESE",
+    "state": "NC",
+    "latitude": 35.0714,
+    "longitude": -83.9683,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00318500",
+    "name": "TARBORO 1 S",
+    "state": "NC",
+    "latitude": 35.8842,
+    "longitude": -77.5386,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00381310",
+    "name": "CAMDEN 3 W",
+    "state": "SC",
+    "latitude": 34.2428,
+    "longitude": -80.6564,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00381588",
+    "name": "CHERAW",
+    "state": "SC",
+    "latitude": 34.7028,
+    "longitude": -79.8822,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USW00013782",
+    "name": "DWTN CHARLESTON",
+    "state": "SC",
+    "latitude": 32.775,
+    "longitude": -79.9239,
+    "network_prefix": "USW"
+  },
+  {
+    "station_id": "USC00383742",
+    "name": "GREENVILLE DWTN AP",
+    "state": "SC",
+    "latitude": 34.8486,
+    "longitude": -82.35,
+    "network_prefix": "USC"
+  },
+  {
+    "station_id": "USC00386209",
+    "name": "NEWBERRY",
+    "state": "SC",
+    "latitude": 34.2917,
+    "longitude": -81.6208,
+    "network_prefix": "USC"
+  }
+]

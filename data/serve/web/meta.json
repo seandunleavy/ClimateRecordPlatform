@@ -1,0 +1,18 @@
+{
+  "exported_at_utc": "2026-07-21T17:40:35.785578+00:00",
+  "year": 2020,
+  "station_count": 15,
+  "sources": {
+    "dim_station": "data/gold/dims/dim_station.parquet",
+    "mart_degree_days_monthly": "data/gold/marts/mart_degree_days_monthly.parquet",
+    "mart_extremes_yearly": "data/gold/marts/mart_extremes_yearly.parquet",
+    "mart_freeze_season_yearly": "data/gold/marts/mart_freeze_season_yearly.parquet"
+  },
+  "methods": {
+    "qc": "Gold uses silver stations_qc rows with qc_pass=True only",
+    "degree_days": "tavg=(TMAX+TMIN)/2; HDD/CDD vs base 18 C; monthly sums",
+    "extremes": "Hot TMAX>=32/35 C; freeze TMIN<=0 C; wet PRCP>=25.4 mm",
+    "freeze_season": "Freeze TMIN<=0; last spring freeze month<=6; first fall month>=7"
+  },
+  "scope": "SC, NC, GA long-record USW/USC sample \u2014 portfolio demo, not full NCEI product"
+}
