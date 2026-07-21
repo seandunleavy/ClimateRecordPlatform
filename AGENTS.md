@@ -59,7 +59,12 @@ python -m src.transform.export_qc_fails
 # static web export (optional copy into Dunleavy data/)
 python -m src.serve.export_web_json --copy-to-dunleavy
 # full multi-decade mart JSON (default). Single year: --single-year 2020
+
+# read-only API (DuckDB over gold Parquet)
+uvicorn src.api.main:app --reload --port 8080
+# then open http://127.0.0.1:8080/docs
 ```
+
 
 
 

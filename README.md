@@ -49,7 +49,12 @@ python -m src.transform.silver_to_gold
 # 5) dbt + DuckDB — SQL star/marts + tests (run from repo root)
 .\.venv\Scripts\dbt.exe run --project-dir dbt --profiles-dir dbt
 .\.venv\Scripts\dbt.exe test --project-dir dbt --profiles-dir dbt
+
+# 6) Read-only API (filtered marts + daily drill-down)
+uvicorn src.api.main:app --reload --port 8080
+# Open http://127.0.0.1:8080/docs
 ```
+
 
 Data lands under `data/` (gitignored payloads). DuckDB file: `data/gold/climate_record.duckdb`. Run manifests under `data/meta/`.
 

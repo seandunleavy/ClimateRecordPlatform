@@ -241,15 +241,27 @@ dbt test --project-dir dbt --profiles-dir dbt
 
 **Division of labor:** Python builds gold Parquet (ingest/QC/metrics methods). dbt owns SQL packaging + data tests (portfolio DE skill).
 
-### Serve (static web)
+### Serve (static web + API)
 
 | Piece | Role |
 |-------|------|
-| `python -m src.serve.export_web_json` | Gold marts → small JSON under `data/serve/web/` |
-| `--copy-to-dunleavy` | Copies into `dunleavyorganization.com/data/climate-record/` |
-| `project-climate-record.html` | Draft Dunleavy page: Chart.js over mart JSON + methods |
+| `python -m src.serve.export_web_json` | Gold marts → JSON under `data/serve/web/` |
+| `--copy-to-dunleavy` | Copies into Dunleavy `data/climate-record/` |
+| Static explorer page | Chart.js over mart JSON (demo) |
+| `uvicorn src.api.main:app --port 8080` | **Read-only FastAPI** — filtered marts + daily fact drill-down via DuckDB |
 
-Charts never read bronze `.dly` or the full daily fact in the browser.
+| API route | Returns |
+|-----------|---------|
+| `GET /health` | Gold files present? |
+| `GET /stations` | Station dimension |
+| `GET /degree-days?station_id=&year_from=&year_to=` | Monthly heating/cooling degree-days |
+| `GET /extremes?station_id=&year_from=&year_to=` | Yearly extreme-day counts |
+| `GET /freeze-season?station_id=&year_from=&year_to=` | Freeze / growing season |
+| `GET /observations?station_id=&element=&date_from=&date_to=&limit=` | Daily fact slice (capped) |
+
+Interactive docs: `http://127.0.0.1:8080/docs`  
+
+Charts/API never open bronze `.dly` in the browser; the API only returns the requested slice.
 
 ### Still planned
 
