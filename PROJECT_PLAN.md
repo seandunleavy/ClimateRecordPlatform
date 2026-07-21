@@ -37,9 +37,10 @@ PHASE 3 — Gold (v1)
   ✅ Silver: .dly → daily Parquet (TMAX/TMIN/PRCP)
   ✅ QC: qc_pass / qc_reasons on silver; export fails to CSV
   ✅ Gold v1: dim_station, fact_observation_daily, monthly climate,
-     monthly HDD/CDD (base 18°C), yearly coverage
-NEXT: more marts (freeze / extremes) and/or dbt + DuckDB; then serve
+     monthly HDD/CDD, yearly coverage, freeze season, extremes
+NEXT: dbt + DuckDB tests; then serve / Dunleavy
 ```
+
 
 ---
 
@@ -68,9 +69,10 @@ NEXT: more marts (freeze / extremes) and/or dbt + DuckDB; then serve
 - [x] `dim_station` (current attributes; SCD2 later if needed)  
 - [x] `fact_observation_daily` (qc_pass only)  
 - [x] Marts: monthly climate, monthly HDD/CDD, yearly coverage  
-- [ ] Marts: freeze season, extreme-day rates  
+- [x] Marts: freeze season (yearly), extremes (yearly)  
 - [ ] `dim_date` / richer dims as needed  
 - [ ] dbt + DuckDB models + tests  
+
 
 ### Phase 4 — Serve
 

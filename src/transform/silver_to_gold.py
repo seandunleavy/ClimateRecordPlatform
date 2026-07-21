@@ -10,12 +10,28 @@ Output (Parquet):
   data/gold/marts/mart_monthly_climate.parquet
   data/gold/marts/mart_degree_days_monthly.parquet
   data/gold/marts/mart_coverage_yearly.parquet
+  data/gold/marts/mart_freeze_season_yearly.parquet
+  data/gold/marts/mart_extremes_yearly.parquet
+
+What is a "mart"?
+  A mart is a ready-to-use summary table for a question (dashboard/report),
+  not the raw daily fact. Example: "HDD by station-month" is a mart;
+  every daily TMAX row is a fact.
 
 Degree-day method (documented, simple):
   Daily mean temp ≈ (TMAX + TMIN) / 2   when both pass QC that day
   HDD = max(0, base_c - tavg)           default base 18 °C (~65 °F)
   CDD = max(0, tavg - base_c)
   Monthly marts sum daily HDD/CDD.
+
+Freeze-season method (calendar year, simple):
+  Freeze day: TMIN <= 0 °C (qc_pass).
+  last_spring_freeze: last freeze date with month <= 6
+  first_fall_freeze: first freeze date with month >= 7
+  growing_season_days: days between those two when both exist
+
+Extremes method (calendar year):
+  Counts of hot / cold / wet days using fixed thresholds (see code).
 
 Only qc_pass rows feed gold. Failures stay in silver_qc for audit.
 
@@ -43,6 +59,11 @@ from src.common.paths import (
 )
 
 DEFAULT_BASE_C = 18.0
+# Extremes thresholds (°C / mm) — product definitions, documented for portfolio honesty
+HOT_DAY_TMAX_C = 32.0  # ~90 °F
+VERY_HOT_TMAX_C = 35.0  # ~95 °F
+FREEZE_TMIN_C = 0.0
+WET_DAY_PRCP_MM = 25.4  # ~1 inch
 
 
 def load_qc_frames(station_ids: list[str] | None) -> pd.DataFrame:
@@ -241,6 +262,93 @@ def build_mart_coverage_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
     return g.sort_values(["station_id", "year", "element"]).reset_index(drop=True)
 
 
+def build_mart_freeze_season_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
+    """
+    Grain: station_id + year (calendar year).
+
+    Simple freeze definitions for portfolio transparency — not NWS climate division product.
+    """
+    tmin = qc_pass.loc[
+        qc_pass["element"] == "TMIN",
+        ["station_id", "date", "value"],
+    ].copy()
+    if tmin.empty:
+        return pd.DataFrame()
+
+    tmin["year"] = tmin["date"].dt.year
+    tmin["month"] = tmin["date"].dt.month
+    tmin["is_freeze"] = tmin["value"] <= FREEZE_TMIN_C
+
+    rows: list[dict] = []
+    for (sid, year), g in tmin.groupby(["station_id", "year"]):
+        freezes = g.loc[g["is_freeze"]]
+        spring = freezes.loc[freezes["month"] <= 6, "date"]
+        fall = freezes.loc[freezes["month"] >= 7, "date"]
+        last_spring = spring.max() if len(spring) else pd.NaT
+        first_fall = fall.min() if len(fall) else pd.NaT
+        growing = None
+        if pd.notna(last_spring) and pd.notna(first_fall) and first_fall > last_spring:
+            growing = int((first_fall - last_spring).days)
+
+        rows.append(
+            {
+                "station_id": sid,
+                "year": int(year),
+                "freeze_threshold_c": FREEZE_TMIN_C,
+                "n_tmin_obs": int(len(g)),
+                "n_freeze_days": int(len(freezes)),
+                "last_spring_freeze": (
+                    last_spring.strftime("%Y-%m-%d") if pd.notna(last_spring) else None
+                ),
+                "first_fall_freeze": (
+                    first_fall.strftime("%Y-%m-%d") if pd.notna(first_fall) else None
+                ),
+                "growing_season_days": growing,
+            }
+        )
+
+    mart = pd.DataFrame(rows)
+    if mart.empty:
+        return mart
+    return mart.sort_values(["station_id", "year"]).reset_index(drop=True)
+
+
+def build_mart_extremes_yearly(qc_pass: pd.DataFrame) -> pd.DataFrame:
+    """
+    Grain: station_id + year.
+    Fixed thresholds — good for charts; document units when publishing.
+    """
+    df = qc_pass.copy()
+    df["year"] = df["date"].dt.year
+
+    rows: list[dict] = []
+    for (sid, year), g in df.groupby(["station_id", "year"]):
+        tmax = g.loc[g["element"] == "TMAX", "value"]
+        tmin = g.loc[g["element"] == "TMIN", "value"]
+        prcp = g.loc[g["element"] == "PRCP", "value"]
+        rows.append(
+            {
+                "station_id": sid,
+                "year": int(year),
+                "n_days_tmax_ge_32c": int((tmax >= HOT_DAY_TMAX_C).sum()),
+                "n_days_tmax_ge_35c": int((tmax >= VERY_HOT_TMAX_C).sum()),
+                "n_days_tmin_le_0c": int((tmin <= FREEZE_TMIN_C).sum()),
+                "n_days_prcp_ge_25mm": int((prcp >= WET_DAY_PRCP_MM).sum()),
+                "max_tmax_c": round(float(tmax.max()), 2) if len(tmax) else None,
+                "min_tmin_c": round(float(tmin.min()), 2) if len(tmin) else None,
+                "max_daily_prcp_mm": round(float(prcp.max()), 2) if len(prcp) else None,
+                "n_tmax_obs": int(len(tmax)),
+                "n_tmin_obs": int(len(tmin)),
+                "n_prcp_obs": int(len(prcp)),
+            }
+        )
+
+    mart = pd.DataFrame(rows)
+    if mart.empty:
+        return mart
+    return mart.sort_values(["station_id", "year"]).reset_index(drop=True)
+
+
 def write_parquet(df: pd.DataFrame, path: Path) -> dict:
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path, index=False)
@@ -278,6 +386,8 @@ def main() -> None:
     monthly = build_mart_monthly_climate(qc)
     degree = build_mart_degree_days_monthly(qc, base_c=args.base_c)
     coverage = build_mart_coverage_yearly(qc)
+    freeze = build_mart_freeze_season_yearly(qc)
+    extremes = build_mart_extremes_yearly(qc)
 
     outputs = {
         "dim_station": write_parquet(dim, GOLD_DIMS / "dim_station.parquet"),
@@ -289,6 +399,12 @@ def main() -> None:
         ),
         "mart_coverage_yearly": write_parquet(
             coverage, GOLD_MARTS / "mart_coverage_yearly.parquet"
+        ),
+        "mart_freeze_season_yearly": write_parquet(
+            freeze, GOLD_MARTS / "mart_freeze_season_yearly.parquet"
+        ),
+        "mart_extremes_yearly": write_parquet(
+            extremes, GOLD_MARTS / "mart_extremes_yearly.parquet"
         ),
     }
     if fact is not None:
@@ -312,6 +428,22 @@ def main() -> None:
                 ].to_string(index=False)
             )
 
+    if not freeze.empty and "USW00013872" in set(freeze["station_id"]):
+        fz = freeze.loc[
+            (freeze["station_id"] == "USW00013872") & (freeze["year"] == 2020)
+        ]
+        if not fz.empty:
+            print("\nSample — Asheville 2020 freeze season:")
+            print(fz.to_string(index=False))
+
+    if not extremes.empty and "USW00013872" in set(extremes["station_id"]):
+        ex = extremes.loc[
+            (extremes["station_id"] == "USW00013872") & (extremes["year"] == 2020)
+        ]
+        if not ex.empty:
+            print("\nSample — Asheville 2020 extremes:")
+            print(ex.to_string(index=False))
+
     META.mkdir(parents=True, exist_ok=True)
     man = {
         "built_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -322,6 +454,10 @@ def main() -> None:
         "method_notes": {
             "degree_days": "tavg=(TMAX+TMIN)/2 on days both pass QC; "
             f"HDD=max(0,base-tavg), CDD=max(0,tavg-base), base_c={args.base_c}",
+            "freeze_season": f"freeze if TMIN<={FREEZE_TMIN_C}; "
+            "last spring freeze month<=6; first fall freeze month>=7",
+            "extremes": f"hot TMAX>={HOT_DAY_TMAX_C}/{VERY_HOT_TMAX_C}; "
+            f"freeze TMIN<={FREEZE_TMIN_C}; wet PRCP>={WET_DAY_PRCP_MM} mm",
             "qc": "only silver stations_qc rows with qc_pass=True",
         },
     }

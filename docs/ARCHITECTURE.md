@@ -138,6 +138,10 @@ Silver QC **keeps** failed rows for audit. Gold **reads only** `qc_pass == True`
 | `mart_monthly_climate` | station + year + month | avg TMAX/TMIN, total PRCP, day counts |
 | `mart_degree_days_monthly` | station + year + month | HDD/CDD sums |
 | `mart_coverage_yearly` | station + year + element | n_obs / days_in_year |
+| `mart_freeze_season_yearly` | station + year | freeze days, spring/fall freeze, growing season length |
+| `mart_extremes_yearly` | station + year | hot/cold/wet day counts + annual max/min |
+
+**Mart vs fact:** a **fact** is detailed observations (daily); a **mart** is a pre-built summary for a business question (charts, APIs).
 
 ### Degree-day method (documented)
 
@@ -151,11 +155,23 @@ CDD = max(0, tavg_c - base_c)
 
 Monthly marts **sum** daily HDD/CDD. Method is simple and explicit — not a full NCEI operational product.
 
+### Freeze season (documented)
+
+- Freeze day: `TMIN <= 0 °C`  
+- `last_spring_freeze`: last freeze with month ≤ 6  
+- `first_fall_freeze`: first freeze with month ≥ 7  
+- `growing_season_days`: days between those dates when both exist  
+
+### Extremes (documented)
+
+Per station-year counts: TMAX ≥ 32 °C / 35 °C; TMIN ≤ 0 °C; PRCP ≥ 25.4 mm; plus annual max TMAX, min TMIN, max daily PRCP.
+
 ### Still planned
 
-- `mart_freeze_season`, extremes rates  
 - SCD2 on stations if history warrants  
 - dbt + DuckDB models/tests over the same logic  
+- Richer freeze definitions (winter-spanning seasons) if product needs them  
+
 
 ---
 
