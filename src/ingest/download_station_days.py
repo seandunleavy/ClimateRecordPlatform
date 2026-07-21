@@ -172,8 +172,8 @@ def main() -> None:
     parser.add_argument(
         "--max-stations",
         type=int,
-        default=15,
-        help="Max stations to download (default 15)",
+        default=60,
+        help="Max stations to download (default 60)",
     )
     parser.add_argument(
         "--min-span-years",

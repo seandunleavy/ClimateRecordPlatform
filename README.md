@@ -35,7 +35,7 @@ pip install -r requirements.txt
 
 # 1) Bronze — meta + long-record station .dly files
 python -m src.ingest.download_ghcnd_meta
-python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 15
+python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 60
 
 # 2) Silver — parse .dly → Parquet (use manifest stations, not leftover US1* files)
 python -m src.transform.bronze_to_silver --from-manifest

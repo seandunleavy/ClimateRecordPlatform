@@ -42,7 +42,7 @@ cd C:\Users\seand\GitProjects\ClimateRecordPlatform
 .\.venv\Scripts\Activate.ps1
 
 python -m src.ingest.download_ghcnd_meta
-python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 15
+python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 60
 
 python -m src.transform.bronze_to_silver --from-manifest
 python -m src.transform.apply_qc --all

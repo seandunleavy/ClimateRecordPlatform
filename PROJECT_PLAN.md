@@ -41,8 +41,10 @@ PHASE 3 — Gold (v1)
   ✅ dbt + DuckDB: staging + mart models, 29 schema/relationship tests PASS
   ✅ Serve export: full-history mart JSON + Dunleavy explorer
   ✅ Read-only FastAPI over gold marts/facts (DuckDB)
-NEXT: more stations (step 4); more marts/metrics; promote/deploy when ready
+  ✅ Station sample expanded to 60 long-record USW/USC (SC/NC/GA, 20 each)
+NEXT: more marts/metrics; promote/deploy when ready
 ```
+
 
 
 
@@ -60,7 +62,8 @@ NEXT: more stations (step 4); more marts/metrics; promote/deploy when ready
 - [x] `download_ghcnd_meta` — stations, inventory, readme  
 - [x] `download_station_days` — `.dly` per station  
 - [x] Long-record sampling: USW/USC, TMAX+TMIN+PRCP span, state balance  
-- [x] Bronze verified (~15 SE stations; multi‑MB long records)
+- [x] Bronze sample expanded to **60** stations (20 per SC/NC/GA; ~7.2M silver rows)  
+
 
 ### Phase 2 — Silver
 
