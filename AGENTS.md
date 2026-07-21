@@ -6,6 +6,22 @@
 - Public viz later on Dunleavy.  
 - **Out of scope:** work-window / crew scheduling; political slogan framing.
 
+## Portfolio standard (locked)
+
+This repo must showcase **best practices first**, with **modern tools when they earn their place**.
+
+| Practice | How we do it here |
+|----------|-------------------|
+| Medallion | bronze → silver → silver_qc → gold |
+| Star schema | `dim_station`, `dim_date`, `dim_element` + `fact_observation_daily` |
+| QC without silent deletes | `qc_pass` / `qc_reasons`; gold uses pass only |
+| Fast viz | charts from **marts**, not raw `.dly` or full daily fact by default |
+| Documented methods | HDD base, freeze defs, extremes thresholds in ARCHITECTURE |
+| Modern stack | Python + Parquet now; **dbt + DuckDB** next when it adds SQL/tests/speed |
+| Honest scale | regional long-record sample — enterprise *patterns*, not petabyte claims |
+
+When choosing next work: prefer changes that strengthen the portfolio story (tests, dbt, clearer star, serve from marts) over one-off hacks.
+
 ## Stack
 
 - Python under `src/ingest/` and `src/transform/`  

@@ -112,15 +112,26 @@ Station pick: long-record **USW** / **USC** with inventory overlap on TMAX, TMIN
 
 ## Last session
 
-**2026-07-21 (docs catch-up)**
+**2026-07-21 (portfolio standard + star/marts)**
 
-- Documented full path: bronze → silver → stations_qc → gold v1  
-- Updated PROJECT_PLAN, ARCHITECTURE, README, PORTFOLIO, AGENTS  
+- Locked portfolio principle: best practices + purposeful modern stack  
+- Gold star schema (`dim_date`, `dim_element`) + marts for fast viz  
+- Global agent rule + this repo AGENTS/PROJECT_PLAN updated  
 
 **Prior work (same effort arc)**
 
-- Long-record station download; silver parse (all 15)  
-- QC rules + fail export; gold dims/facts/marts including HDD/CDD  
+- Docs catch-up; long-record bronze; silver; QC; gold marts (HDD/CDD, freeze, extremes)  
+
+
+---
+
+## Locked product principles
+
+- **Best practices first** (medallion, star schema, explicit QC, documented metric methods).  
+- **Modern tools when justified** (Parquet now; dbt/DuckDB when they buy tests + query speed).  
+- **Fast viz from marts**; atomic fact for drill-down / new questions.  
+- **Honest scale** — regional sample, enterprise patterns.  
+- Portfolio-facing work should be explainable in an interview without hand-waving.
 
 ---
 
@@ -130,3 +141,4 @@ Station pick: long-record **USW** / **USC** with inventory overlap on TMAX, TMIN
 - DuckDB vs Postgres for gold serve  
 - Full SE vs SC-only for first public demo  
 - Whether to tighten temp gates further for gold-only rules vs keep silver_qc as source of truth  
+
