@@ -1,31 +1,36 @@
 {
-  "exported_at_utc": "2026-07-21T18:26:41.233448+00:00",
-  "mode": "all_years",
-  "year_min": 1849,
+  "exported_at_utc": "2026-07-21T20:32:32.417310+00:00",
+  "mode": "all_years_per_station_v1_1",
+  "year_min": 1845,
   "year_max": 2026,
-  "station_count": 15,
-  "row_counts": {
-    "degree_days_monthly": 19628,
-    "extremes_yearly": 1861,
-    "freeze_yearly": 1710
-  },
-  "files": {
+  "station_count": 323,
+  "layout": {
     "stations": "stations.json",
-    "degree_days_monthly": "degree_days_monthly.json",
-    "extremes_yearly": "extremes_yearly.json",
-    "freeze_yearly": "freeze_yearly.json"
+    "stations_map": "stations_map.json",
+    "per_station_dir": "by_station/{station_id}/",
+    "files_per_station": [
+      "degree_days_monthly.json",
+      "extremes_yearly.json",
+      "freeze_yearly.json",
+      "monthly_climate.json",
+      "coverage_yearly.json"
+    ],
+    "network_extremes_latest": "network_extremes_latest.json"
   },
-  "sources": {
-    "dim_station": "data/gold/dims/dim_station.parquet",
-    "mart_degree_days_monthly": "data/gold/marts/mart_degree_days_monthly.parquet",
-    "mart_extremes_yearly": "data/gold/marts/mart_extremes_yearly.parquet",
-    "mart_freeze_season_yearly": "data/gold/marts/mart_freeze_season_yearly.parquet"
+  "row_counts": {
+    "degree_days_monthly": 308059,
+    "extremes_yearly": 28512,
+    "freeze_yearly": 26838,
+    "monthly_climate": 330049,
+    "coverage_yearly": 82111,
+    "per_station_json_files": 1615
   },
   "methods": {
     "qc": "Gold uses silver stations_qc rows with qc_pass=True only",
-    "degree_days": "tavg=(TMAX+TMIN)/2; heating/cooling degree-days vs base 18 C; monthly sums",
+    "degree_days": "tavg=(TMAX+TMIN)/2; heating/cooling degree-days vs base 18 C",
     "extremes": "Hot TMAX>=32/35 C; freeze TMIN<=0 C; wet PRCP>=25.4 mm",
-    "freeze_season": "Freeze TMIN<=0; last spring freeze month<=6; first fall month>=7"
+    "freeze_season": "Freeze TMIN<=0; growing season between last spring and first fall freeze"
   },
-  "scope": "South Carolina, North Carolina, Georgia long-record USW/USC sample \u2014 portfolio demo, not a national NCEI product"
+  "scope": "South Carolina, North Carolina, Georgia long-record USW/USC (50+ year TMAX+TMIN+PRCP) \u2014 v1 regional platform",
+  "performance_note": "UI loads stations once, then by_station/{id}/* for selection only"
 }
