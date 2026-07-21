@@ -1,8 +1,8 @@
 # Climate Record Platform — Project Plan
 
 **Last updated:** 2026-07-21  
-**Status:** **v1.0 complete** (regional long-record platform) — continuing in-repo as v1.1+  
-**Git tag:** `v1.0.0`  
+**Status:** **v1.1 in progress** (v1.0 tagged) — more explorer charts from existing marts  
+**Git tag:** `v1.0.0` (baseline)  
 **Purpose:** Enterprise DE portfolio platform on NOAA GHCNd + public analytics.
 
 ---
@@ -22,7 +22,7 @@ A reproducible **observational climate data warehouse** from public station dail
 | Version | Scope | Status |
 |---------|--------|--------|
 | **v1.0** | Regional long-record platform (SC/NC/GA) + marts + dbt + serve/API | ✅ **Closed** |
-| **v1.1** | More charts / explorer interactions from existing marts | ⬜ Next |
+| **v1.1** | More charts / explorer interactions from existing marts | 🔄 In progress |
 | **v1.2** | Dunleavy public link + deploy polish | ⬜ |
 | **v2.0** | Nationwide long-record USW/USC (planned; same repo) | ⬜ |
 
@@ -51,8 +51,12 @@ v1.0 CLOSED — Regional long-record climate platform
   ✅ dbt + DuckDB (29 schema/relationship tests)
   ✅ Per-station mart JSON + draft Dunleavy explorer (fast charts)
   ✅ Optional read-only FastAPI over gold Parquet
-NEXT (v1.1): more chart types / interactive options from existing marts
+v1.1 IN PROGRESS — richer explorer (~10 charts)
+  ✅ Per-station export: climate + coverage marts added
+  ✅ Explorer: wet days, max/min temps, precip, completeness, map, network
+NEXT: user preview; polish; then v1.2 public Dunleavy when ready
 ```
+
 
 ---
 
@@ -143,11 +147,16 @@ Expandable later (nationwide long-record = v2).
 
 ## Last session
 
-**2026-07-21 — Close v1.0**
+**2026-07-21 — Start v1.1 charts**
 
-- Declared **v1.0 complete**; tagged `v1.0.0`  
-- Documented scale (~323 stations, ~28M qc_pass rows), per-station serve, roadmap v1.1–v2  
-- Next work continues immediately: **v1.1 more charts** (same repo)  
+- Expanded web export with `monthly_climate` + `coverage_yearly` per station  
+- Explorer multi-chart pack (~11 viz) on Dunleavy draft page  
+- Still same repo; v1.0.0 tag unchanged  
+
+**Earlier — Close v1.0**
+
+- Tagged `v1.0.0`; regional long-record platform documented  
+
 
 ---
 
