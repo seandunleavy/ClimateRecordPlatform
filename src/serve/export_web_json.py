@@ -64,12 +64,37 @@ FREEZE_COLS = [
 ]
 
 
+def _json_default(obj: object) -> object:
+    """Pandas may emit NaN/NaT; standard JSON has no NaN — use null."""
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _sanitize_for_json(payload: object) -> object:
+    """Replace NaN/NaT/NA with None so json.dumps emits valid null."""
+    if isinstance(payload, list):
+        return [_sanitize_for_json(x) for x in payload]
+    if isinstance(payload, dict):
+        return {k: _sanitize_for_json(v) for k, v in payload.items()}
+    # float NaN / inf
+    try:
+        if payload != payload:  # NaN
+            return None
+    except Exception:
+        pass
+    if payload is pd.NaT:
+        return None
+    if payload is pd.NA:
+        return None
+    return payload
+
+
 def _write_json(path: Path, payload: object, *, compact: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    clean = _sanitize_for_json(payload)
     if compact:
-        text = json.dumps(payload, separators=(",", ":"))
+        text = json.dumps(clean, allow_nan=False, separators=(",", ":"))
     else:
-        text = json.dumps(payload, indent=2)
+        text = json.dumps(clean, allow_nan=False, indent=2)
     path.write_text(text, encoding="utf-8")
     print(f"  wrote {path} ({path.stat().st_size:,} bytes)")
 
