@@ -1,6 +1,6 @@
 # Architecture — Climate Record Platform
 
-**Last updated:** 2026-07-21 (star schema + viz path)
+**Last updated:** 2026-07-21 — **v1.0.0** regional long-record platform
 
 ---
 
@@ -262,6 +262,16 @@ dbt test --project-dir dbt --profiles-dir dbt
 Interactive docs: `http://127.0.0.1:8080/docs`  
 
 Charts/API never open bronze `.dly` in the browser; the API only returns the requested slice.
+
+### v1.0 scale (regional complete)
+
+| Item | Approx. |
+|------|---------|
+| Stations | ~323 long-record USW/USC in SC, NC, GA (50+ year TMAX/TMIN/PRCP inventory overlap) |
+| `qc_pass` daily fact rows | ~28 million |
+| Web serve | `stations.json` + `by_station/{station_id}/*.json` (not one giant all-station degree-day file) |
+
+**v1.0 tag:** `v1.0.0` — same repo continues with v1.1 (more charts), v1.2 (public Dunleavy), v2 (nationwide long-record).
 
 ### Still planned
 

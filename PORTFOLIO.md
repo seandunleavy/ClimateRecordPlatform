@@ -1,8 +1,10 @@
 # Climate Record Platform — Portfolio case study
 
-**Status:** In progress (gold v1 shipped; public site TBD)  
-**Live URL:** TBD (Dunleavy page after Phase 4)  
+**Status:** **v1.0 complete** (regional long-record platform)  
+**Version tag:** `v1.0.0`  
+**Live URL:** Draft explorer locally / Dunleavy draft page (production link TBD — v1.2)  
 **Role:** Solo data engineer / builder  
+**Repo:** https://github.com/seandunleavy/ClimateRecordPlatform  
 
 ---
 
@@ -12,17 +14,17 @@ Public daily weather observations (NOAA GHCNd) are large, station-oriented, and 
 
 ---
 
-## Solution (built so far)
+## Solution (v1.0)
 
-End-to-end medallion path on a regional sample (SC / NC / GA):
+End-to-end medallion platform on a **complete regional long-record sample**:
 
 1. **Bronze** — HTTPS bulk land of station meta, inventory, and per-station `.dly` files  
-2. **Smart station pick** — long-record USW/USC via inventory (TMAX+TMIN+PRCP span), not first IDs in sort  
+2. **Smart station pick** — all USW/USC in SC/NC/GA with ≥50-year TMAX+TMIN+PRCP inventory overlap (~**323 stations**)  
 3. **Silver** — fixed-width `.dly` → daily typed Parquet; retain M/Q/S flags; scale units  
-4. **QC** — explicit `qc_pass` / `qc_reasons` (missing, NOAA qflag, physical ranges, TMAX&lt;TMIN); no silent deletes  
-5. **Gold star + marts** — `dim_station` / `dim_date` / `dim_element` + daily fact; pre-agg marts for fast charts (HDD/CDD, freeze, extremes)  
-
-6. **Tests / public site** — dbt + Dunleavy planned  
+4. **QC** — `qc_pass` / `qc_reasons` (missing, NOAA qflag, physical ranges, TMAX&lt;TMIN); no silent deletes  
+5. **Gold star + marts** — dims + daily fact; monthly climate, heating/cooling degree-days, extremes, freeze season, coverage  
+6. **dbt + DuckDB** — SQL models + uniqueness / relationship tests  
+7. **Serve** — per-station mart JSON for a fast Chart.js explorer; optional read-only FastAPI for on-demand slices  
 
 ---
 
@@ -31,30 +33,49 @@ End-to-end medallion path on a regional sample (SC / NC / GA):
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ```text
-NOAA GHCNd → bronze (.dly) → silver (rows) → stations_qc (flags) → gold (marts)
+NOAA GHCNd → bronze → silver → stations_qc → gold (star + marts)
+                              → dbt/DuckDB tests
+                              → per-station JSON / FastAPI → explorer
 ```
 
 ---
 
-## Phases shipped
+## Scale (honest)
+
+| Metric | v1.0 |
+|--------|------|
+| Stations | ~**323** long-record USW/USC (SC, NC, GA) |
+| Quality-pass daily rows | ~**28 million** |
+| History | Multi-decade to ~150+ years on some series |
+| Web performance approach | Load **only selected station** mart files (not full daily fact or giant all-station JSON) |
+
+Enterprise **patterns** at portfolio-honest volume — not petabyte claims.
+
+---
+
+## Phases shipped (v1.0)
 
 | Phase | Status |
 |-------|--------|
-| Repo + bronze ingest (meta + long-record sample) | ✅ |
+| Repo + bronze ingest (long-record regional set) | ✅ |
 | Silver parse + quality profile | ✅ |
 | Row-level QC + fail export | ✅ |
-| Gold star schema + marts (HDD/CDD, coverage, freeze, extremes) | ✅ |
-| dbt + DuckDB tests | ⬜ |
-| Public Dunleavy explorer | ⬜ |
+| Gold star schema + marts | ✅ |
+| dbt + DuckDB tests | ✅ |
+| Fast mart-based explorer + optional API | ✅ |
+| Production Dunleavy link | ⬜ v1.2 |
+| Nationwide sample | ⬜ v2 |
 
 ---
 
 ## Challenges (real ones hit)
 
 - **Station ID selection** — first-N by ID yielded short CoCoRaHS-style gauges; inventory + USW/USC fixed it  
-- **`.dly` layout** — month-wide fixed-width lines, not one day per row; scale factors (tenths °C / mm)  
-- **Bad historical values** — rare but extreme (e.g. 1470 °C TMAX); caught by range QC + NOAA qflags  
-- **Missing vs wrong** — most QC fails are missing days or NOAA flags, not only absurd temps  
+- **`.dly` layout** — month-wide fixed-width lines; scale factors (tenths °C / mm)  
+- **Bad historical values** — rare extremes (e.g. 1470 °C TMAX); range QC + NOAA qflags  
+- **Missing vs wrong** — most QC fails are missing days or NOAA flags  
+- **Serve at scale** — all-station multi-decade JSON grew to tens of MB; switched to **per-station** mart loads so charts stay fast  
+- **Sparse stations** — inventory span ≠ every year filled after QC (showed honestly in explorer)  
 
 ---
 
@@ -62,11 +83,19 @@ NOAA GHCNd → bronze (.dly) → silver (rows) → stations_qc (flags) → gold 
 
 - Medallion layout on real public data  
 - Reproducible ingest + manifests  
-- Quality-aware silver (flags retained, product rules explicit)  
-- Analytic marts (degree-days, coverage) with documented methods  
-- Path to enterprise modeling (dbt/tests, serve layer)  
+- Quality-aware silver and explicit product QC  
+- Dimensional modeling (star) + analytic marts  
+- dbt testing culture  
+- Performance-aware serving (marts / per-station slices / optional API)  
+- Transparent climate metric methods  
 
-**Honest scale:** multi-decade daily data for ~15 regional stations (~1.8M qc_pass rows into gold) — **enterprise patterns**, not petabyte claims.
+---
+
+## Roadmap (same repo)
+
+- **v1.1** — more charts and interactions from existing marts  
+- **v1.2** — public Dunleavy case study link  
+- **v2** — nationwide long-record expansion (planned)  
 
 ---
 

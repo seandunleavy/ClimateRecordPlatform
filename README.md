@@ -3,25 +3,33 @@
 **Enterprise-style data platform** on public **NOAA GHCNd** (Global Historical Climatology Network — daily) weather observations.
 
 **Not** a crew scheduler or forecast app.  
-**Is** bronze → silver → QC → gold modeling, quality-aware transforms, and (later) public visualizations + transparent methods.
+**Is** bronze → silver → QC → gold (star + marts), dbt tests, and mart-driven charts / optional API.
 
 **Owner:** Sean Dunleavy / The Dunleavy Organization, LLC  
+**Version:** **v1.0.0** (regional long-record platform) — tag `v1.0.0`  
 **Career plan pointer:** `GitProjects/career/projects/` (priorities)
 
 ---
 
 ## Goals
 
-1. **DE proof:** medallion architecture, dimensional model, QC flags, tests, incremental patterns  
-2. **Public product (later):** explorer on dunleavyorganization.com — normals, HDD/CDD, freeze metrics, extremes, coverage quality  
+1. **DE proof:** medallion architecture, dimensional model, QC flags, tests  
+2. **Public product:** explorer (draft on Dunleavy) — degree-days, freeze metrics, extremes  
 3. **Honest science:** pre-defined metrics, documented methods, no slogan science  
 
 ---
 
 ## Status
 
-See **YOU ARE HERE** in [`PROJECT_PLAN.md`](PROJECT_PLAN.md).  
-**Shipped through gold v1** (dims, daily fact, monthly climate, HDD/CDD, coverage) for a 15-station SC/NC/GA long-record sample.
+**v1.0 complete.** See **YOU ARE HERE** and roadmap in [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
+
+| v1.0 highlight | Approx. |
+|----------------|---------|
+| Long-record stations (SC/NC/GA, USW/USC, 50+y) | **~323** |
+| Quality-pass daily observations | **~28M** |
+| dbt tests | **29 PASS** |
+
+Next in-repo: **v1.1** more charts; **v1.2** public Dunleavy link; **v2** nationwide long-record.
 
 ---
 
@@ -35,9 +43,9 @@ pip install -r requirements.txt
 
 # 1) Bronze — meta + long-record station .dly files
 python -m src.ingest.download_ghcnd_meta
-python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 60
+python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 400
 
-# 2) Silver — parse .dly → Parquet (use manifest stations, not leftover US1* files)
+# 2) Silver — parse .dly → Parquet (manifest stations)
 python -m src.transform.bronze_to_silver --from-manifest
 
 # 3) QC — flag rows; keep all history
@@ -46,28 +54,19 @@ python -m src.transform.apply_qc --all
 # 4) Gold — dims / facts / marts from qc_pass only
 python -m src.transform.silver_to_gold
 
-# 5) dbt + DuckDB — SQL star/marts + tests (run from repo root)
+# 5) dbt + DuckDB (close DBeaver if it locks climate_record.duckdb)
 .\.venv\Scripts\dbt.exe run --project-dir dbt --profiles-dir dbt
 .\.venv\Scripts\dbt.exe test --project-dir dbt --profiles-dir dbt
 
-# 6) Read-only API (filtered marts + daily drill-down)
+# 6) Web mart export (per-station JSON for fast charts)
+python -m src.serve.export_web_json --copy-to-dunleavy
+
+# 7) Optional API
 uvicorn src.api.main:app --reload --port 8080
-# Open http://127.0.0.1:8080/docs
+# http://127.0.0.1:8080/docs
 ```
 
-
-Data lands under `data/` (gitignored payloads). DuckDB file: `data/gold/climate_record.duckdb`. Run manifests under `data/meta/`.
-
-**Requires:** activate venv first; packages in `requirements.txt` include `duckdb`, `dbt-core`, `dbt-duckdb`.
-
-### Useful extras
-
-```powershell
-python -m src.ingest.download_station_days --list-only
-python -m src.transform.silver_quality_check
-python -m src.transform.export_qc_fails
-python -m src.transform.export_qc_fails --reason range_temp
-```
+Data under `data/` is largely gitignored (regenerable). DuckDB: `data/gold/climate_record.duckdb`.
 
 ---
 
@@ -75,8 +74,8 @@ python -m src.transform.export_qc_fails --reason range_temp
 
 | File | Role |
 |------|------|
-| [`PROJECT_PLAN.md`](PROJECT_PLAN.md) | Phases, YOU ARE HERE |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design + Mermaid + QC/gold methods |
+| [`PROJECT_PLAN.md`](PROJECT_PLAN.md) | Phases, versions, YOU ARE HERE |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design + methods |
 | [`PORTFOLIO.md`](PORTFOLIO.md) | Hiring case study |
 | [`AGENTS.md`](AGENTS.md) | Agent rules for this repo |
 
@@ -93,9 +92,12 @@ python -m src.transform.export_qc_fails --reason range_temp
 
 ```text
 data/bronze/          raw NOAA files
-data/silver/stations/ parsed daily rows
-data/silver/stations_qc/  + qc_pass / qc_reasons
-data/gold/dims|facts|marts/
+data/silver/          parsed + stations_qc
+data/gold/            star + marts + duckdb
+data/serve/web/       stations index + by_station/{id}/ mart JSON
 src/ingest/           downloads
 src/transform/        parse, QC, gold
+src/serve/            web export
+src/api/              FastAPI read-only
+dbt/                  SQL models + tests
 ```

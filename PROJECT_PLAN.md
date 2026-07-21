@@ -1,8 +1,9 @@
 # Climate Record Platform — Project Plan
 
 **Last updated:** 2026-07-21  
-**Status:** Active — Phase 3 (gold v1 shipped; dbt still planned)  
-**Purpose:** Enterprise DE portfolio platform on NOAA GHCNd + public analytics later.
+**Status:** **v1.0 complete** (regional long-record platform) — continuing in-repo as v1.1+  
+**Git tag:** `v1.0.0`  
+**Purpose:** Enterprise DE portfolio platform on NOAA GHCNd + public analytics.
 
 ---
 
@@ -16,58 +17,76 @@ A reproducible **observational climate data warehouse** from public station dail
 
 ---
 
+## Version roadmap (same repo)
+
+| Version | Scope | Status |
+|---------|--------|--------|
+| **v1.0** | Regional long-record platform (SC/NC/GA) + marts + dbt + serve/API | ✅ **Closed** |
+| **v1.1** | More charts / explorer interactions from existing marts | ⬜ Next |
+| **v1.2** | Dunleavy public link + deploy polish | ⬜ |
+| **v2.0** | Nationwide long-record USW/USC (planned; same repo) | ⬜ |
+
+---
+
 ## Goals
 
 | # | Goal | Status |
 |---|------|--------|
-| 1 | Bronze ingest of GHCNd meta + SE station days | ✅ |
-| 2 | Silver parse + quality flags retained + row QC | ✅ |
-| 3 | Gold dims/facts + marts (HDD/CDD, coverage; freeze/extremes next) | 🔄 Partial (v1) |
-| 4 | dbt tests + incremental patterns | ⬜ |
-| 5 | Public pages on Dunleavy | ⬜ |
-| 6 | PORTFOLIO case study complete | 🔄 Draft updated |
+| 1 | Bronze ingest of GHCNd meta + regional station days | ✅ v1 |
+| 2 | Silver parse + quality flags retained + row QC | ✅ v1 |
+| 3 | Gold dims/facts + marts (HDD/CDD, freeze, extremes, coverage) | ✅ v1 |
+| 4 | dbt tests (+ later incremental patterns) | ✅ v1 tests; incremental later |
+| 5 | Public pages on Dunleavy | 🔄 Draft explorer; production link = v1.2 |
+| 6 | PORTFOLIO case study complete | 🔄 Updated for v1.0 |
 
 ---
 
 ## YOU ARE HERE
 
 ```
-PHASE 3 — Gold (v1)
-  ✅ Bronze: meta + long-record USW/USC (SC/NC/GA), inventory-based pick
-  ✅ Silver: .dly → daily Parquet (TMAX/TMIN/PRCP)
-  ✅ QC: qc_pass / qc_reasons on silver; export fails to CSV
-  ✅ Gold star: dim_station, dim_date, dim_element, fact_observation_daily
-  ✅ Marts: monthly climate, HDD/CDD, coverage, freeze, extremes
-  ✅ dbt + DuckDB: staging + mart models, 29 schema/relationship tests PASS
-  ✅ Serve export: full-history mart JSON + Dunleavy explorer
-  ✅ Read-only FastAPI over gold marts/facts (DuckDB)
-  ✅ Station sample: **all** long-record USW/USC in SC/NC/GA (50+y span) ≈ **323 stations**
-  ✅ ~28M qc_pass daily rows; web loads **per-station** mart JSON (keeps charts fast)
-NEXT: more chart types / marts; promote/deploy when ready
+v1.0 CLOSED — Regional long-record climate platform
+  ✅ Bronze → silver → QC → gold star + marts
+  ✅ ~323 long-record USW/USC stations (SC, NC, GA; 50+y TMAX/TMIN/PRCP)
+  ✅ ~28M qc_pass daily fact rows
+  ✅ dbt + DuckDB (29 schema/relationship tests)
+  ✅ Per-station mart JSON + draft Dunleavy explorer (fast charts)
+  ✅ Optional read-only FastAPI over gold Parquet
+NEXT (v1.1): more chart types / interactive options from existing marts
 ```
 
+---
 
+## v1.0 scope (what “done” means)
 
+**Included**
+- Medallion pipeline on public NOAA GHCNd  
+- Long-record station selection (not first-ID junk samples)  
+- Full history for selected stations in gold  
+- Star schema + analytic marts  
+- Quality control with audit trail (`qc_pass` / reasons)  
+- dbt models + tests  
+- Fast web explorer pattern (marts, not daily facts in the browser)  
+- Optional API for on-demand slices  
 
-
-
-
-
+**Explicitly out of v1.0**
+- Nationwide station network  
+- Production Dunleavy nav link / formal deploy  
+- Full set of ~10 chart types  
+- SCD2 station history, warehouse in the cloud  
 
 ---
 
 ## Phases
 
-### Phase 1 — Bronze
+### Phase 1 — Bronze ✅
 
 - [x] Repo + docs skeleton  
 - [x] `download_ghcnd_meta` — stations, inventory, readme  
 - [x] `download_station_days` — `.dly` per station  
-- [x] Long-record sampling: USW/USC, TMAX+TMIN+PRCP span, state balance  
-- [x] Bronze sample expanded to **60** stations (20 per SC/NC/GA; ~7.2M silver rows)  
+- [x] Long-record USW/USC, inventory span, state balance  
+- [x] Full regional long-record set (~323 stations, SC/NC/GA)  
 
-
-### Phase 2 — Silver
+### Phase 2 — Silver ✅
 
 - [x] Parse fixed-width `.dly` into typed daily rows  
 - [x] Retain MFLAGS / QFLAGS / SFLAGS  
@@ -77,85 +96,73 @@ NEXT: more chart types / marts; promote/deploy when ready
 - [x] Row QC flags (`apply_qc` → `data/silver/stations_qc/`)  
 - [x] Export QC fails to CSV for review  
 
-### Phase 3 — Gold + dbt
+### Phase 3 — Gold + dbt ✅ (v1)
 
 - [x] Star dims: `dim_station`, `dim_date`, `dim_element`  
-- [x] Atomic fact: `fact_observation_daily` (station + date_key + element_code)  
+- [x] Atomic fact: `fact_observation_daily`  
 - [x] Marts: monthly climate, HDD/CDD, coverage, freeze, extremes  
-- [ ] SCD2 on stations if needed  
-- [x] dbt + DuckDB models + tests over star + marts (initial)  
+- [x] dbt + DuckDB models + tests  
+- [ ] SCD2 on stations if needed (later)  
+- [ ] Incremental dbt patterns (later)  
 
+### Phase 4 — Serve 🔄
 
-
-
-### Phase 4 — Serve
-
-- [x] Publish subset for web (JSON marts, demo year 2020)  
-- [x] Dunleavy draft explorer page + methodology (not production-linked yet)  
-- [x] Read-only API (FastAPI + DuckDB on gold Parquet)  
-- [ ] Promote/deploy + link from projects.html  
+- [x] Mart → web JSON (per-station for performance at scale)  
+- [x] Draft Dunleavy explorer + methods  
+- [x] Read-only FastAPI (DuckDB on gold Parquet)  
+- [ ] Promote/deploy + link from projects.html (v1.2)  
 - [ ] Freshness badge  
 
+### Phase 5 — Portfolio polish 🔄
 
-
-### Phase 5 — Portfolio polish
-
-- [ ] Architecture diagrams final  
-- [x] PORTFOLIO.md kept current with milestones  
-- [ ] Optional Snowflake/Tableau as **consumers only**  
+- [x] Architecture + PORTFOLIO for v1.0  
+- [ ] Optional Snowflake/Tableau as consumers only  
 
 ---
 
-## Stack
+## Stack (v1 locked)
 
 | Layer | Choice |
 |-------|--------|
-| Language | Python 3.11+ (dev currently 3.14 OK) |
+| Language | Python 3.11+ |
 | Bronze | Raw NOAA `.txt` / `.dly` under `data/bronze` |
 | Silver | Parquet daily rows + QC-flagged copy |
-| Gold | Parquet dims/facts/marts under `data/gold` (Python first) |
-| Transform next | **dbt + DuckDB** planned under `dbt/` |
-| Serve | Dunleavy static/API later |
-| Optional | Snowflake / Tableau as extra consumers of gold |
+| Gold | Parquet dims/facts/marts under `data/gold` |
+| SQL / tests | **dbt + DuckDB** |
+| API | FastAPI (read-only) |
+| Web demo | Static mart JSON + Chart.js (Dunleavy draft) |
 
 ---
 
-## Geographic MVP scope
+## Geographic scope (v1)
 
-**Default:** SC, NC, GA (CLI expandable).  
-Station pick: long-record **USW** / **USC** with inventory overlap on TMAX, TMIN, PRCP (default min span 50 years), balanced across states.
+**South Carolina, North Carolina, Georgia** — all USW/USC stations with ≥50 years overlapping TMAX + TMIN + PRCP in inventory.  
+Expandable later (nationwide long-record = v2).
 
 ---
 
 ## Last session
 
-**2026-07-21 (portfolio standard + star/marts)**
+**2026-07-21 — Close v1.0**
 
-- Locked portfolio principle: best practices + purposeful modern stack  
-- Gold star schema (`dim_date`, `dim_element`) + marts for fast viz  
-- Global agent rule + this repo AGENTS/PROJECT_PLAN updated  
-
-**Prior work (same effort arc)**
-
-- Docs catch-up; long-record bronze; silver; QC; gold marts (HDD/CDD, freeze, extremes)  
-
+- Declared **v1.0 complete**; tagged `v1.0.0`  
+- Documented scale (~323 stations, ~28M qc_pass rows), per-station serve, roadmap v1.1–v2  
+- Next work continues immediately: **v1.1 more charts** (same repo)  
 
 ---
 
 ## Locked product principles
 
 - **Best practices first** (medallion, star schema, explicit QC, documented metric methods).  
-- **Modern tools when justified** (Parquet now; dbt/DuckDB when they buy tests + query speed).  
-- **Fast viz from marts**; atomic fact for drill-down / new questions.  
-- **Honest scale** — regional sample, enterprise patterns.  
-- Portfolio-facing work should be explainable in an interview without hand-waving.
+- **Modern tools when justified** (Parquet, dbt, DuckDB, FastAPI).  
+- **Fast viz from marts** (per-station loads at scale); atomic fact for drill-down / API.  
+- **Honest scale** — regional complete long-record in v1; nationwide planned as v2.  
+- **Same repo** for all versions; tags mark milestones.  
 
 ---
 
-## Open decisions
+## Open decisions (post-v1)
 
-- Exact public product name on Dunleavy (working: **Climate Record Platform**)  
-- DuckDB vs Postgres for gold serve  
-- Full SE vs SC-only for first public demo  
-- Whether to tighten temp gates further for gold-only rules vs keep silver_qc as source of truth  
-
+- Dunleavy production link timing (v1.2)  
+- Chart set for v1.1 (wet days, max/min, completeness, map, …)  
+- Nationwide download strategy and serving (API-first) for v2  
