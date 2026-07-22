@@ -1,10 +1,10 @@
 # Climate Record Platform — Portfolio case study
 
-**Status:** **v1.1 complete** (v1.0 platform + multi-chart explorer)  
-**Version tags:** `v1.0.0` (platform), `v1.1.0` (explorer charts)  
-**Live URL:** Draft explorer locally / Dunleavy draft page (production link TBD — v1.2)  
+**Status:** **v1.2 complete** (platform + multi-chart explorer + public Dunleavy case study)  
+**Version tags:** `v1.0.0`, `v1.1.0`, `v1.2.0`  
+**Live URL:** https://www.dunleavyorganization.com/project-climate-record.html  
 **Role:** Solo data engineer / builder  
-**Repo:** https://github.com/seandunleavy/ClimateRecordPlatform  
+**Repo:** https://github.com/seandunleavy/ClimateRecordPlatform *(public)*  
 
 ---
 
@@ -24,7 +24,7 @@ End-to-end medallion platform on a **complete regional long-record sample**:
 4. **QC** — `qc_pass` / `qc_reasons` (missing, NOAA qflag, physical ranges, TMAX&lt;TMIN); no silent deletes  
 5. **Gold star + marts** — dims + daily fact; monthly climate, heating/cooling degree-days, extremes, freeze season, coverage  
 6. **dbt + DuckDB** — SQL models + uniqueness / relationship tests  
-7. **Serve** — per-station mart JSON for a fast multi-chart explorer (degree-days, extremes, precip, completeness, ranks, thematic station map); optional read-only FastAPI  
+7. **Serve** — one combined mart JSON per station for a fast multi-chart explorer (degree-days, extremes, precip, completeness, ranks, thematic station map); optional read-only FastAPI; public case study on Dunleavy  
 
 
 ---
@@ -48,7 +48,7 @@ NOAA GHCNd → bronze → silver → stations_qc → gold (star + marts)
 | Stations | ~**323** long-record USW/USC (SC, NC, GA) |
 | Quality-pass daily rows | ~**28 million** |
 | History | Multi-decade to ~150+ years on some series |
-| Web performance approach | Load **only selected station** mart files (not full daily fact or giant all-station JSON) |
+| Web performance approach | One `by_station/{id}.json` per select (~130 ms typical on live host); not full daily fact |
 
 Enterprise **patterns** at portfolio-honest volume — not petabyte claims.
 
@@ -65,7 +65,7 @@ Enterprise **patterns** at portfolio-honest volume — not petabyte claims.
 | dbt + DuckDB tests | ✅ |
 | Fast mart-based explorer + optional API | ✅ v1.0 |
 | Multi-chart explorer + thematic map | ✅ v1.1 |
-| Production Dunleavy link | ⬜ v1.2 |
+| Production Dunleavy case study page + cards | ✅ v1.2 |
 | Nationwide sample | ⬜ v2 |
 
 ---
@@ -76,7 +76,7 @@ Enterprise **patterns** at portfolio-honest volume — not petabyte claims.
 - **`.dly` layout** — month-wide fixed-width lines; scale factors (tenths °C / mm)  
 - **Bad historical values** — rare extremes (e.g. 1470 °C TMAX); range QC + NOAA qflags  
 - **Missing vs wrong** — most QC fails are missing days or NOAA flags  
-- **Serve at scale** — all-station multi-decade JSON grew to tens of MB; switched to **per-station** mart loads so charts stay fast  
+- **Serve at scale** — all-station multi-decade JSON grew to tens of MB; switched to **per-station** loads, then **one combined JSON** per station (was five files) for fewer round trips on the live host  
 - **Sparse stations** — inventory span ≠ every year filled after QC (showed honestly in explorer)  
 
 ---
@@ -96,7 +96,7 @@ Enterprise **patterns** at portfolio-honest volume — not petabyte claims.
 ## Roadmap (same repo)
 
 - **v1.1** — more charts / ranks / thematic map ✅  
-- **v1.2** — public Dunleavy case study link  
+- **v1.2** — public Dunleavy case study ✅  
 - **v2** — nationwide long-record expansion (planned)  
 
 ---

@@ -1,19 +1,20 @@
 {
-  "exported_at_utc": "2026-07-21T20:32:32.417310+00:00",
-  "mode": "all_years_per_station_v1_1",
+  "exported_at_utc": "2026-07-22T15:13:13.053180+00:00",
+  "mode": "all_years_per_station_v1_2",
   "year_min": 1845,
   "year_max": 2026,
   "station_count": 323,
   "layout": {
     "stations": "stations.json",
     "stations_map": "stations_map.json",
-    "per_station_dir": "by_station/{station_id}/",
-    "files_per_station": [
-      "degree_days_monthly.json",
-      "extremes_yearly.json",
-      "freeze_yearly.json",
-      "monthly_climate.json",
-      "coverage_yearly.json"
+    "per_station": "by_station/{station_id}.json",
+    "per_station_keys": [
+      "station_id",
+      "degree_days",
+      "extremes",
+      "freeze",
+      "climate",
+      "coverage"
     ],
     "network_extremes_latest": "network_extremes_latest.json"
   },
@@ -23,7 +24,7 @@
     "freeze_yearly": 26838,
     "monthly_climate": 330049,
     "coverage_yearly": 82111,
-    "per_station_json_files": 1615
+    "per_station_json_files": 323
   },
   "methods": {
     "qc": "Gold uses silver stations_qc rows with qc_pass=True only",
@@ -32,5 +33,5 @@
     "freeze_season": "Freeze TMIN<=0; growing season between last spring and first fall freeze"
   },
   "scope": "South Carolina, North Carolina, Georgia long-record USW/USC (50+ year TMAX+TMIN+PRCP) \u2014 v1 regional platform",
-  "performance_note": "UI loads stations once, then by_station/{id}/* for selection only"
+  "performance_note": "UI loads indexes once, then one by_station/{id}.json per station selection"
 }

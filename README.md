@@ -6,7 +6,8 @@
 **Is** bronze → silver → QC → gold (star + marts), dbt tests, and mart-driven charts / optional API.
 
 **Owner:** Sean Dunleavy / The Dunleavy Organization, LLC  
-**Version:** **v1.1.0** (explorer chart pack on v1.0 platform) — tags `v1.0.0`, `v1.1.0`  
+**Version:** **v1.2.0** — public Dunleavy case study (tags `v1.0.0`, `v1.1.0`, `v1.2.0`)  
+**Live case study:** https://www.dunleavyorganization.com/project-climate-record.html  
 **Career plan pointer:** `GitProjects/career/projects/` (priorities)
 
 ---
@@ -14,23 +15,23 @@
 ## Goals
 
 1. **DE proof:** medallion architecture, dimensional model, QC flags, tests  
-2. **Public product:** explorer (draft on Dunleavy) — degree-days, freeze metrics, extremes  
+2. **Public product:** explorer on Dunleavy — degree-days, freeze metrics, extremes, map  
 3. **Honest science:** pre-defined metrics, documented methods, no slogan science  
 
 ---
 
 ## Status
 
-**v1.1 complete** (platform + multi-chart explorer). See [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
+**v1.2 complete** — regional platform + multi-chart explorer + live Dunleavy case study. See [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
 
 | Highlight | Approx. |
 |-----------|---------|
 | Long-record stations (SC/NC/GA, USW/USC, 50+y) | **~323** |
 | Quality-pass daily observations | **~28M** |
 | dbt tests | **29 PASS** |
-| Explorer | Multi-chart + ranks + thematic map |
+| Explorer | Live on Dunleavy (multi-chart + ranks + map) |
 
-Next: **v1.2** public Dunleavy link; **v2** nationwide long-record.
+Next (optional): explorer polish; later **v2** nationwide long-record.
 
 ---
 
@@ -95,7 +96,7 @@ Data under `data/` is largely gitignored (regenerable). DuckDB: `data/gold/clima
 data/bronze/          raw NOAA files
 data/silver/          parsed + stations_qc
 data/gold/            star + marts + duckdb
-data/serve/web/       stations index + by_station/{id}/ mart JSON
+data/serve/web/       stations index + by_station/{id}.json (one file per station)
 src/ingest/           downloads
 src/transform/        parse, QC, gold
 src/serve/            web export

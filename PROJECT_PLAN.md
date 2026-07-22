@@ -1,8 +1,9 @@
 # Climate Record Platform — Project Plan
 
-**Last updated:** 2026-07-21  
-**Status:** **v1.1 complete** — explorer chart pack; next is v1.2 (public Dunleavy)  
-**Git tags:** `v1.0.0` (platform), `v1.1.0` (explorer charts)  
+**Last updated:** 2026-07-22  
+**Status:** **v1.2 complete** — public Dunleavy case study live  
+**Git tags:** `v1.0.0` (platform), `v1.1.0` (explorer), `v1.2.0` (public case study)  
+**Live:** https://www.dunleavyorganization.com/project-climate-record.html  
 **Purpose:** Enterprise DE portfolio platform on NOAA GHCNd + public analytics.
 
 ---
@@ -23,7 +24,7 @@ A reproducible **observational climate data warehouse** from public station dail
 |---------|--------|--------|
 | **v1.0** | Regional long-record platform (SC/NC/GA) + marts + dbt + serve/API | ✅ **Closed** |
 | **v1.1** | More charts / explorer interactions from existing marts | ✅ **Closed** |
-| **v1.2** | Dunleavy public link + deploy polish | ⬜ |
+| **v1.2** | Dunleavy public link + deploy polish | ✅ **Closed** |
 | **v2.0** | Nationwide long-record USW/USC (planned; same repo) | ⬜ |
 
 ---
@@ -36,8 +37,8 @@ A reproducible **observational climate data warehouse** from public station dail
 | 2 | Silver parse + quality flags retained + row QC | ✅ v1 |
 | 3 | Gold dims/facts + marts (HDD/CDD, freeze, extremes, coverage) | ✅ v1 |
 | 4 | dbt tests (+ later incremental patterns) | ✅ v1 tests; incremental later |
-| 5 | Public pages on Dunleavy | 🔄 Draft explorer; production link = v1.2 |
-| 6 | PORTFOLIO case study complete | 🔄 Updated for v1.0 |
+| 5 | Public pages on Dunleavy | ✅ Live case study + home/projects cards |
+| 6 | PORTFOLIO case study complete | ✅ Updated through v1.2 |
 
 ---
 
@@ -45,18 +46,15 @@ A reproducible **observational climate data warehouse** from public station dail
 
 ```
 v1.0 CLOSED — Regional long-record climate platform
-  ✅ Bronze → silver → QC → gold star + marts
-  ✅ ~323 long-record USW/USC stations (SC, NC, GA; 50+y TMAX/TMIN/PRCP)
-  ✅ ~28M qc_pass daily fact rows
-  ✅ dbt + DuckDB (29 schema/relationship tests)
-  ✅ Per-station mart JSON + draft Dunleavy explorer (fast charts)
-  ✅ Optional read-only FastAPI over gold Parquet
-v1.1 CLOSED — richer explorer (~10 charts + thematic map + ranks)
-  ✅ Multi-chart pack from existing marts
-  ✅ Thematic station map (hot/freeze marker colors); rank table
-  ✅ Completeness chart renamed for clarity
-NEXT (v1.2): Dunleavy public link / deploy polish
-  (Optional later: map year selector; more polish)
+v1.1 CLOSED — Multi-chart explorer + thematic map + ranks
+v1.2 CLOSED — Public Dunleavy case study
+  ✅ Live: https://www.dunleavyorganization.com/project-climate-record.html
+  ✅ Home + Projects cards; deploy allowlist; production copy
+  ✅ One by_station/{id}.json per select (serve perf)
+  ✅ Public copy (no ops/refresh path on case study page)
+  ✅ Tagged v1.2.0
+NEXT (optional): map year selector; more polish
+LATER: v2 nationwide long-record
 ```
 
 
@@ -112,17 +110,17 @@ NEXT (v1.2): Dunleavy public link / deploy polish
 - [ ] SCD2 on stations if needed (later)  
 - [ ] Incremental dbt patterns (later)  
 
-### Phase 4 — Serve 🔄
+### Phase 4 — Serve ✅ (v1.2)
 
-- [x] Mart → web JSON (per-station for performance at scale)  
-- [x] Draft Dunleavy explorer + methods  
+- [x] Mart → web JSON (one file per station for fewer HTTP requests)  
+- [x] Dunleavy explorer + methods (multi-chart + map)  
 - [x] Read-only FastAPI (DuckDB on gold Parquet)  
-- [ ] Promote/deploy + link from projects.html (v1.2)  
-- [ ] Freshness badge  
+- [x] Production case study + home/projects cards  
+- [ ] Freshness badge (optional later)  
 
-### Phase 5 — Portfolio polish 🔄
+### Phase 5 — Portfolio polish ✅ (v1.2)
 
-- [x] Architecture + PORTFOLIO for v1.0  
+- [x] Architecture + PORTFOLIO + live URL  
 - [ ] Optional Snowflake/Tableau as consumers only  
 
 ---
@@ -137,7 +135,7 @@ NEXT (v1.2): Dunleavy public link / deploy polish
 | Gold | Parquet dims/facts/marts under `data/gold` |
 | SQL / tests | **dbt + DuckDB** |
 | API | FastAPI (read-only) |
-| Web demo | Static mart JSON + Chart.js (Dunleavy draft) |
+| Web demo | Static mart JSON + Chart.js + Leaflet (Dunleavy live) |
 
 ---
 
@@ -150,15 +148,20 @@ Expandable later (nationwide long-record = v2).
 
 ## Last session
 
-**2026-07-21 — Close v1.1**
+**2026-07-22 — Close v1.2 (public case study)**
 
-- Explorer: multi-chart pack, rank table, thematic Leaflet map (hot/freeze)  
-- Tagged **`v1.1.0`** (minor: same warehouse, richer product surface)  
-- Next: **v1.2** public Dunleavy when ready; map year control optional later  
+- Wired Dunleavy case study (page, cards, deploy list, hero); production copy (no draft/ops noise)  
+- Serve: combined `by_station/{id}.json` (1 request vs 5); ~130 ms station load acceptable on phenom  
+- UX: removed redundant status/timing under charts  
+- Deployed to production; smoke OK  
+- Tagged **`v1.2.0`**  
+- **Next (optional):** map year selector; polish. **Later:** v2 nationwide  
 
-**Earlier — v1.0**
+**2026-07-21 — Close v1.1** — multi-chart explorer; tag `v1.1.0`  
 
-- Tagged `v1.0.0`; ~323 stations, ~28M qc_pass rows, dbt, API, per-station serve  
+**Earlier — v1.0** — tag `v1.0.0`; regional platform  
+
+
 
 
 
@@ -176,6 +179,6 @@ Expandable later (nationwide long-record = v2).
 
 ## Open decisions (post-v1)
 
-- Dunleavy production link timing (v1.2)  
-- Chart set for v1.1 (wet days, max/min, completeness, map, …)  
+- ~~Dunleavy production link timing (v1.2)~~ — wire-up done; deploy when ready  
 - Nationwide download strategy and serving (API-first) for v2  
+- Optional map year selector / more explorer polish

@@ -1,7 +1,7 @@
 """
 Export JSON from gold marts for static web charts (Dunleavy).
 
-Per-station files under by_station/{id}/ keep UI fast at 300+ stations.
+One combined file per station: by_station/{id}.json (single HTTP request on select).
 
 Examples:
   python -m src.serve.export_web_json --copy-to-dunleavy
@@ -98,6 +98,14 @@ def _write_json(path: Path, payload: object, *, compact: bool = True) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _records_drop_station_id(df: pd.DataFrame, cols: list[str]) -> list[dict]:
+    """Rows without station_id (known from file path / parent object)."""
+    use = [c for c in cols if c in df.columns and c != "station_id"]
+    if df.empty:
+        return []
+    return df.loc[:, use].to_dict(orient="records")
+
+
 def _load_frames():
     stations = pd.read_parquet(GOLD_DIMS / "dim_station.parquet")
     degree = pd.read_parquet(GOLD_MARTS / "mart_degree_days_monthly.parquet")
@@ -172,45 +180,53 @@ def export_all_years() -> dict:
 
     n_files = 0
     for sid in stations["station_id"].tolist():
-        folder = by_station / str(sid)
-        folder.mkdir(parents=True, exist_ok=True)
-        payloads = {
-            "degree_days_monthly.json": degree.loc[degree["station_id"] == sid]
-            .sort_values(["year", "month"])
-            .loc[:, DEGREE_COLS]
-            .to_dict(orient="records"),
-            "extremes_yearly.json": extremes.loc[extremes["station_id"] == sid]
-            .sort_values("year")
-            .loc[:, EXTREMES_COLS]
-            .to_dict(orient="records"),
-            "freeze_yearly.json": freeze.loc[freeze["station_id"] == sid]
-            .sort_values("year")
-            .loc[:, FREEZE_COLS]
-            .to_dict(orient="records"),
-            "monthly_climate.json": climate.loc[climate["station_id"] == sid]
-            .sort_values(["year", "month"])
-            .loc[:, [c for c in CLIMATE_COLS if c in climate.columns]]
-            .to_dict(orient="records"),
-            "coverage_yearly.json": coverage.loc[coverage["station_id"] == sid]
-            .sort_values(["year", "element_code"])
-            .loc[:, [c for c in COVERAGE_COLS if c in coverage.columns]]
-            .to_dict(orient="records"),
+        # One HTTP request per station select (not five separate files).
+        payload = {
+            "station_id": str(sid),
+            "degree_days": _records_drop_station_id(
+                degree.loc[degree["station_id"] == sid].sort_values(["year", "month"]),
+                DEGREE_COLS,
+            ),
+            "extremes": _records_drop_station_id(
+                extremes.loc[extremes["station_id"] == sid].sort_values("year"),
+                EXTREMES_COLS,
+            ),
+            "freeze": _records_drop_station_id(
+                freeze.loc[freeze["station_id"] == sid].sort_values("year"),
+                FREEZE_COLS,
+            ),
+            "climate": _records_drop_station_id(
+                climate.loc[climate["station_id"] == sid].sort_values(["year", "month"]),
+                CLIMATE_COLS,
+            ),
+            "coverage": _records_drop_station_id(
+                coverage.loc[coverage["station_id"] == sid].sort_values(
+                    ["year", "element_code"]
+                ),
+                COVERAGE_COLS,
+            ),
         }
-        for name, rows in payloads.items():
-            _write_json(folder / name, rows)
-            n_files += 1
+        _write_json(by_station / f"{sid}.json", payload)
+        n_files += 1
 
     meta = {
         "exported_at_utc": datetime.now(timezone.utc).isoformat(),
-        "mode": "all_years_per_station_v1_1",
+        "mode": "all_years_per_station_v1_2",
         "year_min": year_min,
         "year_max": year_max,
         "station_count": len(stations_out),
         "layout": {
             "stations": "stations.json",
             "stations_map": "stations_map.json",
-            "per_station_dir": "by_station/{station_id}/",
-            "files_per_station": list(payloads.keys()),
+            "per_station": "by_station/{station_id}.json",
+            "per_station_keys": [
+                "station_id",
+                "degree_days",
+                "extremes",
+                "freeze",
+                "climate",
+                "coverage",
+            ],
             "network_extremes_latest": "network_extremes_latest.json",
         },
         "row_counts": {
@@ -231,7 +247,9 @@ def export_all_years() -> dict:
             "South Carolina, North Carolina, Georgia long-record USW/USC "
             "(50+ year TMAX+TMIN+PRCP) — v1 regional platform"
         ),
-        "performance_note": "UI loads stations once, then by_station/{id}/* for selection only",
+        "performance_note": (
+            "UI loads indexes once, then one by_station/{id}.json per station selection"
+        ),
     }
     _write_json(SERVE_WEB / "meta.json", meta, compact=False)
     META.mkdir(parents=True, exist_ok=True)

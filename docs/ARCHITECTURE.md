@@ -269,9 +269,11 @@ Charts/API never open bronze `.dly` in the browser; the API only returns the req
 |------|---------|
 | Stations | ~323 long-record USW/USC in SC, NC, GA (50+ year TMAX/TMIN/PRCP inventory overlap) |
 | `qc_pass` daily fact rows | ~28 million |
-| Web serve | `stations.json` + `by_station/{station_id}/*.json` (not one giant all-station degree-day file) |
+| Web serve | `stations.json` + one `by_station/{station_id}.json` per select (not one giant all-station file) |
 
-**v1.0 tag:** `v1.0.0` — same repo continues with v1.1 (more charts), v1.2 (public Dunleavy), v2 (nationwide long-record).
+**Tags:** `v1.0.0` platform · `v1.1.0` multi-chart explorer · `v1.2.0` public Dunleavy case study. Same repo continues with v2 (nationwide long-record).
+
+**Public demo:** https://www.dunleavyorganization.com/project-climate-record.html — static mart JSON under `/data/climate-record/` (export via `export_web_json --copy-to-dunleavy`). Layout: indexes once + **one** `by_station/{station_id}.json` per station select. Warehouse stays local; site never serves bronze/silver/gold Parquet.
 
 ### Still planned
 
