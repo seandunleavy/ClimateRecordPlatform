@@ -1,8 +1,8 @@
 # Climate Record Platform — Project Plan
 
 **Last updated:** 2026-07-22  
-**Status:** **v1.2 complete** — public Dunleavy case study live  
-**Git tags:** `v1.0.0` (platform), `v1.1.0` (explorer), `v1.2.0` (public case study)  
+**Status:** **v2.0 complete** — nationwide long-record live on Dunleavy  
+**Git tags:** `v1.0.0`, `v1.1.0`, `v1.2.0`, `v2.0.0`  
 **Live:** https://www.dunleavyorganization.com/project-climate-record.html  
 **Purpose:** Enterprise DE portfolio platform on NOAA GHCNd + public analytics.
 
@@ -25,7 +25,7 @@ A reproducible **observational climate data warehouse** from public station dail
 | **v1.0** | Regional long-record platform (SC/NC/GA) + marts + dbt + serve/API | ✅ **Closed** |
 | **v1.1** | More charts / explorer interactions from existing marts | ✅ **Closed** |
 | **v1.2** | Dunleavy public link + deploy polish | ✅ **Closed** |
-| **v2.0** | Nationwide long-record USW/USC (planned; same repo) | ⬜ |
+| **v2.0** | Nationwide long-record — **same rules as v1**, all states + DC | ✅ **Closed** |
 
 ---
 
@@ -37,24 +37,23 @@ A reproducible **observational climate data warehouse** from public station dail
 | 2 | Silver parse + quality flags retained + row QC | ✅ v1 |
 | 3 | Gold dims/facts + marts (HDD/CDD, freeze, extremes, coverage) | ✅ v1 |
 | 4 | dbt tests (+ later incremental patterns) | ✅ v1 tests; incremental later |
-| 5 | Public pages on Dunleavy | ✅ Live case study + home/projects cards |
-| 6 | PORTFOLIO case study complete | ✅ Updated through v1.2 |
+| 5 | Public pages on Dunleavy | ✅ Live nationwide explorer + site shell |
+| 6 | PORTFOLIO case study complete | ✅ Updated through v2.0 |
 
 ---
 
 ## YOU ARE HERE
 
 ```
-v1.0 CLOSED — Regional long-record climate platform
-v1.1 CLOSED — Multi-chart explorer + thematic map + ranks
-v1.2 CLOSED — Public Dunleavy case study
-  ✅ Live: https://www.dunleavyorganization.com/project-climate-record.html
-  ✅ Home + Projects cards; deploy allowlist; production copy
-  ✅ One by_station/{id}.json per select (serve perf)
-  ✅ Public copy (no ops/refresh path on case study page)
-  ✅ Tagged v1.2.0
-NEXT (optional): map year selector; more polish
-LATER: v2 nationwide long-record
+v1.0–v1.2 CLOSED — Regional platform + public Dunleavy case study
+v2.0 CLOSED — Nationwide long-record (SAME rules as v1)
+  LOCKED: USW+USC · ≥50y TMAX+TMIN+PRCP · all states+DC
+  COUNT: 6,265 stations · ~514M qc_pass fact rows · ~528M silver rows
+  ✅ Bronze → silver → QC → gold (stream_per_station) → dbt 14/14 + 29/29 PASS
+  ✅ export one by_station/{id}.json each; network extremes = per-station latest year
+  ✅ Dunleavy live (desktop + mobile); site shell = phase6-shell
+  ✅ Tagged v2.0.0
+NEXT (optional): station search polish; map clustering
 ```
 
 
@@ -139,23 +138,36 @@ LATER: v2 nationwide long-record
 
 ---
 
-## Geographic scope (v1)
+## Geographic scope
 
-**South Carolina, North Carolina, Georgia** — all USW/USC stations with ≥50 years overlapping TMAX + TMIN + PRCP in inventory.  
-Expandable later (nationwide long-record = v2).
+| Version | Geography | Station rules |
+|---------|-----------|---------------|
+| **v1** | SC, NC, GA | USW/USC · ≥50y TMAX+TMIN+PRCP inventory overlap · ~323 stations |
+| **v2** | **All US states + DC** | **Same rules as v1** · ~6,265 stations |
+
+```powershell
+# v2 bronze (resume-safe; skips .dly already on disk)
+python -m src.ingest.download_station_days --nationwide
+python -m src.ingest.download_station_days --nationwide --list-only --quiet-list
+```
 
 ---
 
 ## Last session
 
-**2026-07-22 — Close v1.2 (public case study)**
+**2026-07-22 — Close v2.0 (nationwide live)**
 
-- Wired Dunleavy case study (page, cards, deploy list, hero); production copy (no draft/ops noise)  
-- Serve: combined `by_station/{id}.json` (1 request vs 5); ~130 ms station load acceptable on phenom  
-- UX: removed redundant status/timing under charts  
-- Deployed to production; smoke OK  
-- Tagged **`v1.2.0`**  
-- **Next (optional):** map year selector; polish. **Later:** v2 nationwide  
+- Same station rules as v1, all states+DC: **6,265** stations  
+- Full pipeline: bronze → silver (~528M rows) → QC (97.3% pass) → gold stream (~514M fact) → dbt 29 PASS  
+- Serve: combined per-station JSON; map uses per-station latest extremes year; hide zero-day markers  
+- Dunleavy case study updated + site shell aligned; deployed; desktop + mobile OK  
+- Tagged **`v2.0.0`**  
+
+**2026-07-22 — Close v1.2** — public Dunleavy case study; **`v1.2.0`**  
+
+
+
+
 
 **2026-07-21 — Close v1.1** — multi-chart explorer; tag `v1.1.0`  
 

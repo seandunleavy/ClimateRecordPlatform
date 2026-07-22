@@ -18,7 +18,7 @@ This repo must showcase **best practices first**, with **modern tools when they 
 | Fast viz | charts from **marts** → small JSON under `data/serve/web` → Dunleavy page |
 | Documented methods | HDD base, freeze defs, extremes thresholds in ARCHITECTURE |
 | Modern stack | Python + Parquet now; **dbt + DuckDB** next when it adds SQL/tests/speed |
-| Honest scale | regional long-record sample — enterprise *patterns*, not petabyte claims |
+| Honest scale | long-record USW/USC (v1 regional → v2 nationwide same rules) — enterprise patterns, not petabyte claims |
 
 When choosing next work: prefer changes that strengthen the portfolio story (tests, dbt, clearer star, serve from marts) over one-off hacks.
 
@@ -42,7 +42,9 @@ cd C:\Users\seand\GitProjects\ClimateRecordPlatform
 .\.venv\Scripts\Activate.ps1
 
 python -m src.ingest.download_ghcnd_meta
+# Regional (v1) or nationwide (v2) — same USW/USC + 50y TMAX+TMIN+PRCP rules
 python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 400
+python -m src.ingest.download_station_days --nationwide
 
 python -m src.transform.bronze_to_silver --from-manifest
 python -m src.transform.apply_qc --all

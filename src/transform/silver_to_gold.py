@@ -10,9 +10,8 @@ Marts (pre-aggregated for fast charts — same as aggregate facts):
   mart_monthly_climate, mart_degree_days_monthly, mart_coverage_yearly,
   mart_freeze_season_yearly, mart_extremes_yearly
 
-Why both?
-  - Star/fact: flexible drill-down, joins, BI tools
-  - Marts: tiny tables for high-performance dashboards (no scan of 1.8M rows)
+Nationwide scale: process one station QC file at a time (do not load all
+~500M qc_pass rows into RAM). Fact is streamed with a ParquetWriter.
 
 Degree-day method:
   tavg ≈ (TMAX+TMIN)/2; HDD=max(0,base-tavg); CDD=max(0,tavg-base); base default 18°C
@@ -33,6 +32,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from src.common.paths import (
     BRONZE_META,
@@ -75,8 +76,8 @@ ELEMENT_CATALOG: list[dict] = [
 ]
 
 
-def load_qc_frames(station_ids: list[str] | None) -> pd.DataFrame:
-    """Load silver QC Parquet; keep qc_pass rows only."""
+def list_qc_paths(station_ids: list[str] | None) -> list[Path]:
+    """Paths to station QC Parquet files (one file per station)."""
     paths = sorted(SILVER_STATIONS_QC.glob("*.parquet"))
     if not paths:
         raise SystemExit(
@@ -88,17 +89,33 @@ def load_qc_frames(station_ids: list[str] | None) -> pd.DataFrame:
         paths = [p for p in paths if p.stem in want]
         if not paths:
             raise SystemExit(f"No QC files for stations={station_ids}")
+    return paths
 
-    frames = []
-    for path in paths:
-        df = pd.read_parquet(path)
-        if "qc_pass" not in df.columns:
-            raise SystemExit(f"{path.name} missing qc_pass; re-run apply_qc")
-        frames.append(df.loc[df["qc_pass"]].copy())
 
-    out = pd.concat(frames, ignore_index=True)
-    out["date"] = pd.to_datetime(out["date"])
+def load_qc_pass_station(path: Path) -> pd.DataFrame:
+    """Load one station QC file; return qc_pass rows only."""
+    df = pd.read_parquet(path)
+    if "qc_pass" not in df.columns:
+        raise SystemExit(f"{path.name} missing qc_pass; re-run apply_qc")
+    out = df.loc[df["qc_pass"]].copy()
+    if not out.empty:
+        out["date"] = pd.to_datetime(out["date"])
     return out
+
+
+def load_qc_frames(station_ids: list[str] | None) -> pd.DataFrame:
+    """Load QC Parquet into one frame (small subsets only — not nationwide)."""
+    paths = list_qc_paths(station_ids)
+    if len(paths) > 50 and not station_ids:
+        raise SystemExit(
+            "Refusing to load all stations into one DataFrame (nationwide OOM risk). "
+            "Use the streaming gold build in main(), or pass --station for a sample."
+        )
+    frames = [load_qc_pass_station(p) for p in paths]
+    frames = [f for f in frames if not f.empty]
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)
 
 
 def build_dim_station(station_ids: list[str]) -> pd.DataFrame:
@@ -440,6 +457,12 @@ def write_parquet(df: pd.DataFrame, path: Path) -> dict:
     return {"path": str(path), "rows": int(len(df))}
 
 
+def _concat_marts(parts: list[pd.DataFrame]) -> pd.DataFrame:
+    if not parts:
+        return pd.DataFrame()
+    return pd.concat(parts, ignore_index=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Build gold star schema (dims+fact) and analytics marts"
@@ -463,23 +486,111 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print(f"Loading qc_pass rows from {SILVER_STATIONS_QC} ...")
-    qc = load_qc_frames(args.stations)
-    station_ids = sorted(qc["station_id"].unique())
-    print(f"  stations={len(station_ids)}  qc_pass_rows={len(qc):,}")
+    paths = list_qc_paths(args.stations)
+    total = len(paths)
+    print(
+        f"Streaming gold build from {SILVER_STATIONS_QC} "
+        f"({total} station files; one-at-a-time to avoid OOM)"
+    )
 
-    date_min = qc["date"].min()
-    date_max = qc["date"].max()
+    station_ids: list[str] = []
+    date_min: pd.Timestamp | None = None
+    date_max: pd.Timestamp | None = None
+    qc_pass_rows = 0
+
+    monthly_parts: list[pd.DataFrame] = []
+    degree_parts: list[pd.DataFrame] = []
+    coverage_parts: list[pd.DataFrame] = []
+    freeze_parts: list[pd.DataFrame] = []
+    extremes_parts: list[pd.DataFrame] = []
+
+    fact_writer: pq.ParquetWriter | None = None
+    fact_path = GOLD_FACTS / "fact_observation_daily.parquet"
+    fact_rows = 0
+    if not args.skip_fact:
+        GOLD_FACTS.mkdir(parents=True, exist_ok=True)
+        if fact_path.exists():
+            fact_path.unlink()
+
+    for i, path in enumerate(paths, start=1):
+        qc = load_qc_pass_station(path)
+        if qc.empty:
+            if i == 1 or i % 100 == 0 or i == total:
+                print(f"progress {i}/{total} (empty qc_pass: {path.stem})")
+            continue
+
+        sid = str(qc["station_id"].iloc[0]) if "station_id" in qc.columns else path.stem
+        station_ids.append(sid)
+        d0, d1 = qc["date"].min(), qc["date"].max()
+        date_min = d0 if date_min is None else min(date_min, d0)
+        date_max = d1 if date_max is None else max(date_max, d1)
+        qc_pass_rows += len(qc)
+
+        m = build_mart_monthly_climate(qc)
+        if not m.empty:
+            monthly_parts.append(m)
+        d = build_mart_degree_days_monthly(qc, base_c=args.base_c)
+        if not d.empty:
+            degree_parts.append(d)
+        c = build_mart_coverage_yearly(qc)
+        if not c.empty:
+            coverage_parts.append(c)
+        f = build_mart_freeze_season_yearly(qc)
+        if not f.empty:
+            freeze_parts.append(f)
+        e = build_mart_extremes_yearly(qc)
+        if not e.empty:
+            extremes_parts.append(e)
+
+        if not args.skip_fact:
+            fact = build_fact_observation_daily(qc)
+            if not fact.empty:
+                table = pa.Table.from_pandas(fact, preserve_index=False)
+                if fact_writer is None:
+                    fact_writer = pq.ParquetWriter(str(fact_path), table.schema)
+                fact_writer.write_table(table)
+                fact_rows += len(fact)
+
+        if i == 1 or i % 50 == 0 or i == total:
+            print(
+                f"progress {i}/{total}  stations_ok={len(station_ids)}  "
+                f"qc_pass_rows={qc_pass_rows:,}  fact_rows={fact_rows:,}"
+            )
+
+    if fact_writer is not None:
+        fact_writer.close()
+
+    if not station_ids or date_min is None or date_max is None:
+        raise SystemExit("No qc_pass rows found — cannot build gold.")
+
+    station_ids = sorted(set(station_ids))
+    print(f"\nBuilding dims for {len(station_ids)} stations  "
+          f"dates {date_min.date()} .. {date_max.date()}")
+    print(f"Concatenating marts ({len(monthly_parts)} monthly parts) ...")
+
+    monthly = _concat_marts(monthly_parts)
+    degree = _concat_marts(degree_parts)
+    coverage = _concat_marts(coverage_parts)
+    freeze = _concat_marts(freeze_parts)
+    extremes = _concat_marts(extremes_parts)
+
+    # Stable sort after streaming concat
+    if not monthly.empty:
+        monthly = monthly.sort_values(["station_id", "year", "month"]).reset_index(drop=True)
+    if not degree.empty:
+        degree = degree.sort_values(["station_id", "year", "month"]).reset_index(drop=True)
+    if not coverage.empty:
+        coverage = coverage.sort_values(
+            ["station_id", "year", "element_code"]
+        ).reset_index(drop=True)
+    if not freeze.empty:
+        freeze = freeze.sort_values(["station_id", "year"]).reset_index(drop=True)
+    if not extremes.empty:
+        extremes = extremes.sort_values(["station_id", "year"]).reset_index(drop=True)
+
     dim_station = build_dim_station(station_ids)
     dim_date = build_dim_date(date_min, date_max)
     dim_element = build_dim_element()
-
-    fact = None if args.skip_fact else build_fact_observation_daily(qc)
-    monthly = build_mart_monthly_climate(qc)
-    degree = build_mart_degree_days_monthly(qc, base_c=args.base_c)
-    coverage = build_mart_coverage_yearly(qc)
-    freeze = build_mart_freeze_season_yearly(qc)
-    extremes = build_mart_extremes_yearly(qc)
 
     outputs = {
         "dim_station": write_parquet(dim_station, GOLD_DIMS / "dim_station.parquet"),
@@ -501,10 +612,11 @@ def main() -> None:
             extremes, GOLD_MARTS / "mart_extremes_yearly.parquet"
         ),
     }
-    if fact is not None:
-        outputs["fact_observation_daily"] = write_parquet(
-            fact, GOLD_FACTS / "fact_observation_daily.parquet"
-        )
+    if not args.skip_fact and fact_path.exists():
+        outputs["fact_observation_daily"] = {
+            "path": str(fact_path),
+            "rows": int(fact_rows),
+        }
 
     print("\nStar schema (dims + atomic fact):")
     for name in ("dim_station", "dim_date", "dim_element", "fact_observation_daily"):
@@ -539,8 +651,10 @@ def main() -> None:
     man = {
         "built_at_utc": datetime.now(timezone.utc).isoformat(),
         "base_c": args.base_c,
+        "build_mode": "stream_per_station",
         "stations": station_ids,
-        "qc_pass_rows": int(len(qc)),
+        "station_count": len(station_ids),
+        "qc_pass_rows": int(qc_pass_rows),
         "date_min": str(date_min.date()),
         "date_max": str(date_max.date()),
         "outputs": outputs,
@@ -576,6 +690,7 @@ def main() -> None:
     man_path = META / "gold_manifest.json"
     man_path.write_text(json.dumps(man, indent=2), encoding="utf-8")
     print(f"\nmanifest: {man_path}")
+    print(f"done: stations={len(station_ids)} qc_pass_rows={qc_pass_rows:,}")
 
 
 if __name__ == "__main__":

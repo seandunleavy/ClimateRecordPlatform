@@ -6,7 +6,7 @@
 **Is** bronze → silver → QC → gold (star + marts), dbt tests, and mart-driven charts / optional API.
 
 **Owner:** Sean Dunleavy / The Dunleavy Organization, LLC  
-**Version:** **v1.2.0** — public Dunleavy case study (tags `v1.0.0`, `v1.1.0`, `v1.2.0`)  
+**Version:** **v2.0.0** — nationwide long-record + public Dunleavy explorer (tags `v1.0.0`–`v2.0.0`)  
 **Live case study:** https://www.dunleavyorganization.com/project-climate-record.html  
 **Career plan pointer:** `GitProjects/career/projects/` (priorities)
 
@@ -22,16 +22,16 @@
 
 ## Status
 
-**v1.2 complete** — regional platform + multi-chart explorer + live Dunleavy case study. See [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
+**v2.0 complete** — nationwide long-record warehouse + live Dunleavy explorer. See [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
 
 | Highlight | Approx. |
 |-----------|---------|
-| Long-record stations (SC/NC/GA, USW/USC, 50+y) | **~323** |
-| Quality-pass daily observations | **~28M** |
+| Long-record stations (US nationwide USW/USC, 50+y) | **~6,265** |
+| Quality-pass daily observations | **~514M** |
 | dbt tests | **29 PASS** |
 | Explorer | Live on Dunleavy (multi-chart + ranks + map) |
 
-Next (optional): explorer polish; later **v2** nationwide long-record.
+Optional later: station search polish; incremental refresh.
 
 ---
 

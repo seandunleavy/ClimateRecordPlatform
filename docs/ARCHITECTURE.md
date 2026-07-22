@@ -271,9 +271,11 @@ Charts/API never open bronze `.dly` in the browser; the API only returns the req
 | `qc_pass` daily fact rows | ~28 million |
 | Web serve | `stations.json` + one `by_station/{station_id}.json` per select (not one giant all-station file) |
 
-**Tags:** `v1.0.0` platform · `v1.1.0` multi-chart explorer · `v1.2.0` public Dunleavy case study. Same repo continues with v2 (nationwide long-record).
+**Tags:** `v1.0.0` platform · `v1.1.0` explorer · `v1.2.0` public case study · `v2.0.0` nationwide long-record.
 
 **Public demo:** https://www.dunleavyorganization.com/project-climate-record.html — static mart JSON under `/data/climate-record/` (export via `export_web_json --copy-to-dunleavy`). Layout: indexes once + **one** `by_station/{station_id}.json` per station select. Warehouse stays local; site never serves bronze/silver/gold Parquet.
+
+**Nationwide gold build:** process one QC station file at a time (`stream_per_station`); write `fact_observation_daily` with a ParquetWriter; concat marts after the pass. Avoids loading ~500M+ rows into a single DataFrame.
 
 ### Still planned
 

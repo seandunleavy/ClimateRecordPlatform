@@ -137,8 +137,13 @@ def export_all_years() -> dict:
     print(f"Export ALL YEARS ({year_min}-{year_max}) per-station -> {SERVE_WEB}")
     _write_json(SERVE_WEB / "stations.json", stations_out, compact=False)
 
-    latest = int(extremes["year"].max())
-    summary = extremes.loc[extremes["year"] == latest].merge(
+    # Per-station latest year (not global max year only).
+    # Many long-record stations have no rows in calendar year = max(year) yet
+    # (closed sites, sparse end-of-record). Using only global max left ~half the
+    # map without metrics / "n/a" years.
+    latest_global = int(extremes["year"].max())
+    idx = extremes.groupby("station_id", sort=False)["year"].idxmax()
+    summary = extremes.loc[idx].merge(
         stations[["station_id", "name", "state"]], on="station_id", how="left"
     )
     summary_out = (
@@ -160,6 +165,8 @@ def export_all_years() -> dict:
         .to_dict(orient="records")
     )
     _write_json(SERVE_WEB / "network_extremes_latest.json", summary_out)
+    # Alias for older consumers
+    _write_json(SERVE_WEB / f"network_extremes_{latest_global}.json", summary_out)
 
     # Map points for station map chart
     _write_json(

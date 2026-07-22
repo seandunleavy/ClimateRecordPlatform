@@ -1,21 +1,18 @@
 """
-Phase 1 — download daily observation files for a subset of US stations.
+Phase 1 — download daily observation files for US stations.
 
 GHCNd bulk per-station files:
   {GHCND_BASE}/all/{STATION_ID}.dly
 
-Selection (default):
-  - States from --states (default SC,NC,GA)
-  - Prefer long-record networks: USW (first-order/airport) and USC (coop)
-  - Require inventory coverage for TMAX, TMIN, and PRCP
-  - Rank by approximate overlapping year span; optional state balance
+Selection (same rules regional and nationwide):
+  - USW (first-order/airport) and USC (coop) by default
+  - Inventory overlap for TMAX + TMIN + PRCP ≥ min span (default 50 years)
+  - States from --states (default SC,NC,GA) or --nationwide (all states + DC)
 
-Filters:
-  --states SC,NC,GA
-  --max-stations 25
-  --min-span-years 50
-  --prefixes USW,USC
-  --list-only   (print picks, do not download)
+Examples:
+  python -m src.ingest.download_station_days --states SC,NC,GA --max-stations 400
+  python -m src.ingest.download_station_days --nationwide --list-only
+  python -m src.ingest.download_station_days --nationwide
 """
 from __future__ import annotations
 
@@ -29,6 +26,63 @@ from src.common.http import download_file
 from src.common.paths import BRONZE_META, BRONZE_STATIONS, GHCND_BASE, META
 
 CORE_ELEMENTS = ("TMAX", "TMIN", "PRCP")
+
+# Contiguous + AK/HI + DC — same long-record rules as regional v1, full map
+US_STATES_NATIONWIDE = frozenset(
+    {
+        "AL",
+        "AK",
+        "AZ",
+        "AR",
+        "CA",
+        "CO",
+        "CT",
+        "DE",
+        "FL",
+        "GA",
+        "HI",
+        "ID",
+        "IL",
+        "IN",
+        "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+        "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+        "NE",
+        "NV",
+        "NH",
+        "NJ",
+        "NM",
+        "NY",
+        "NC",
+        "ND",
+        "OH",
+        "OK",
+        "OR",
+        "PA",
+        "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+        "UT",
+        "VT",
+        "VA",
+        "WA",
+        "WV",
+        "WI",
+        "WY",
+        "DC",
+    }
+)
 
 
 def parse_stations(stations_path: Path, states: set[str], prefixes: set[str]) -> list[dict]:
@@ -107,11 +161,15 @@ def select_stations(
     stations: list[dict],
     inventory: dict[str, dict[str, tuple[int, int]]],
     *,
-    max_stations: int,
+    max_stations: int | None,
     min_span_years: int,
     balance_states: bool,
 ) -> list[dict]:
-    """Rank long-record stations; optionally round-robin across states."""
+    """Rank long-record stations; optionally round-robin across states.
+
+    max_stations=None means take every station that passes the span filter
+    (used for nationwide full long-record set).
+    """
     scored: list[dict] = []
     for s in stations:
         years = inventory.get(s["id"], {})
@@ -134,10 +192,12 @@ def select_stations(
     if not scored:
         return []
 
-    if not balance_states:
-        return scored[:max_stations]
+    limit = len(scored) if max_stations is None else max_stations
 
-    # Round-robin by state so SC/NC/GA all show up in small samples
+    if not balance_states:
+        return scored[:limit]
+
+    # Round-robin by state so multi-state samples stay balanced when capped
     by_state: dict[str, list[dict]] = defaultdict(list)
     for row in scored:
         by_state[row["state"]].append(row)
@@ -145,7 +205,7 @@ def select_stations(
     state_order = sorted(by_state.keys())
     picks: list[dict] = []
     idx = {st: 0 for st in state_order}
-    while len(picks) < max_stations:
+    while len(picks) < limit:
         progress = False
         for st in state_order:
             i = idx[st]
@@ -153,7 +213,7 @@ def select_stations(
                 picks.append(by_state[st][i])
                 idx[st] = i + 1
                 progress = True
-                if len(picks) >= max_stations:
+                if len(picks) >= limit:
                     break
         if not progress:
             break
@@ -162,18 +222,30 @@ def select_stations(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Download GHCNd station daily .dly files (bronze), preferring long records"
+        description="Download GHCNd station daily .dly files (bronze), long-record USW/USC"
     )
     parser.add_argument(
         "--states",
         default="SC,NC,GA",
-        help="Comma-separated US state codes (default SC,NC,GA)",
+        help="Comma-separated US state codes (default SC,NC,GA). Ignored if --nationwide.",
+    )
+    parser.add_argument(
+        "--nationwide",
+        action="store_true",
+        help=(
+            "All US states + DC with the same long-record rules as regional v1 "
+            "(USW/USC, 50y TMAX+TMIN+PRCP). Takes every qualifying station "
+            "(max-stations 0). Disables state balance."
+        ),
     )
     parser.add_argument(
         "--max-stations",
         type=int,
-        default=400,
-        help="Max stations to download (default 400 ≈ all long-record SC/NC/GA)",
+        default=None,
+        help=(
+            "Max stations to download. Default: 400 regional, unlimited with --nationwide. "
+            "Use 0 for unlimited."
+        ),
     )
     parser.add_argument(
         "--min-span-years",
@@ -190,15 +262,40 @@ def main() -> None:
         "--balance-states",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Round-robin picks across states (default on)",
+        help="Round-robin picks across states when max is capped (default on)",
     )
     parser.add_argument(
         "--list-only",
         action="store_true",
         help="Print selected stations and exit without downloading",
     )
+    parser.add_argument(
+        "--quiet-list",
+        action="store_true",
+        help="With --list-only, print summary only (no per-station lines)",
+    )
     args = parser.parse_args()
-    states = {s.strip().upper() for s in args.states.split(",") if s.strip()}
+
+    if args.nationwide:
+        states = set(US_STATES_NATIONWIDE)
+        balance_states = False
+        scope_label = "nationwide"
+        # Same long-record filter as v1; take every qualifier unless user caps
+        if args.max_stations is None or args.max_stations == 0:
+            max_stations: int | None = None
+        else:
+            max_stations = args.max_stations
+    else:
+        states = {s.strip().upper() for s in args.states.split(",") if s.strip()}
+        balance_states = args.balance_states
+        scope_label = "regional"
+        if args.max_stations is None:
+            max_stations = 400
+        elif args.max_stations == 0:
+            max_stations = None
+        else:
+            max_stations = args.max_stations
+
     prefixes = {p.strip().upper() for p in args.prefixes.split(",") if p.strip()}
 
     stations_path = BRONZE_META / "ghcnd-stations.txt"
@@ -222,9 +319,9 @@ def main() -> None:
     selected = select_stations(
         stations,
         inventory,
-        max_stations=args.max_stations,
+        max_stations=max_stations,
         min_span_years=args.min_span_years,
-        balance_states=args.balance_states,
+        balance_states=balance_states,
     )
     if not selected:
         raise SystemExit(
@@ -232,15 +329,21 @@ def main() -> None:
             f"for states={sorted(states)} prefixes={sorted(prefixes)}"
         )
 
+    from collections import Counter
+
+    by_st = Counter(s["state"] for s in selected)
     print(
-        f"selected {len(selected)} stations "
-        f"(min_span={args.min_span_years}y, prefixes={sorted(prefixes)}, "
-        f"balance_states={args.balance_states})"
+        f"selected {len(selected)} stations ({scope_label}) "
+        f"min_span={args.min_span_years}y prefixes={sorted(prefixes)} "
+        f"balance_states={balance_states} states={len(by_st)}"
     )
-    for s in selected:
-        print(
-            f"  {s['id']}  {s['state']}  span~{s['span_years']}y  {s['name']}"
-        )
+    if not args.quiet_list:
+        for s in selected:
+            print(
+                f"  {s['id']}  {s['state']}  span~{s['span_years']}y  {s['name']}"
+            )
+    else:
+        print("top states:", by_st.most_common(12))
 
     if args.list_only:
         print("list-only: no download")
@@ -251,11 +354,14 @@ def main() -> None:
 
     downloaded = []
     errors = []
-    for s in selected:
+    total = len(selected)
+    for i, s in enumerate(selected, start=1):
         sid = s["id"]
         dly_url = f"{GHCND_BASE}/all/{sid}.dly"
         dly_dest = BRONZE_STATIONS / f"{sid}.dly"
         try:
+            if i == 1 or i % 50 == 0 or i == total:
+                print(f"progress {i}/{total} …")
             download_file(dly_url, dly_dest)
             downloaded.append({**s, "format": "dly", "path": str(dly_dest)})
         except Exception as e:  # noqa: BLE001
@@ -264,11 +370,17 @@ def main() -> None:
 
     manifest = {
         "pulled_at_utc": datetime.now(timezone.utc).isoformat(),
+        "scope": scope_label,
+        "nationwide": bool(args.nationwide),
         "states": sorted(states),
         "prefixes": sorted(prefixes),
-        "max_stations": args.max_stations,
+        "max_stations": max_stations,
         "min_span_years": args.min_span_years,
-        "balance_states": args.balance_states,
+        "balance_states": balance_states,
+        "selection_rules": (
+            "USW/USC; inventory overlapping TMAX+TMIN+PRCP span >= min_span_years "
+            "(same rules as regional v1)"
+        ),
         "requested": len(selected),
         "downloaded": len(downloaded),
         "errors": errors,

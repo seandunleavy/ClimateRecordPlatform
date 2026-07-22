@@ -1,9 +1,9 @@
 {
-  "exported_at_utc": "2026-07-22T15:13:13.053180+00:00",
+  "exported_at_utc": "2026-07-22T19:52:38.236453+00:00",
   "mode": "all_years_per_station_v1_2",
-  "year_min": 1845,
+  "year_min": 1836,
   "year_max": 2026,
-  "station_count": 323,
+  "station_count": 6265,
   "layout": {
     "stations": "stations.json",
     "stations_map": "stations_map.json",
@@ -19,12 +19,12 @@
     "network_extremes_latest": "network_extremes_latest.json"
   },
   "row_counts": {
-    "degree_days_monthly": 308059,
-    "extremes_yearly": 28512,
-    "freeze_yearly": 26838,
-    "monthly_climate": 330049,
-    "coverage_yearly": 82111,
-    "per_station_json_files": 323
+    "degree_days_monthly": 5617856,
+    "extremes_yearly": 530399,
+    "freeze_yearly": 490884,
+    "monthly_climate": 6111173,
+    "coverage_yearly": 1511232,
+    "per_station_json_files": 6265
   },
   "methods": {
     "qc": "Gold uses silver stations_qc rows with qc_pass=True only",
