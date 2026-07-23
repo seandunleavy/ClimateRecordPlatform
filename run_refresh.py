@@ -141,7 +141,16 @@ def main() -> int:
     parser.add_argument(
         "--copy-to-dunleavy",
         action="store_true",
-        help="Pass through to export_web_json (deploy-ready copy)",
+        help="Pass through to export_web_json (local Dunleavy data/climate-record copy)",
+    )
+    parser.add_argument(
+        "--deploy-phenom",
+        action="store_true",
+        help=(
+            "After export, scp climate-record JSON to phenom unattended "
+            "(Dunleavy deploy/deploy-climate-data.ps1; no sudo). "
+            "Implies need for --copy-to-dunleavy first (auto-enabled if export runs)."
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -149,6 +158,15 @@ def main() -> int:
         help="Print plan only; no downloads or transforms",
     )
     args = parser.parse_args()
+
+    if args.deploy_phenom and not args.skip_export:
+        # Publish path needs local Dunleavy tree populated
+        args.copy_to_dunleavy = True
+    if args.deploy_phenom and args.skip_export:
+        print(
+            "warning: --deploy-phenom with --skip-export will still try phenom sync "
+            "from existing local Dunleavy data/climate-record/"
+        )
 
     if not args.full and not args.smoke:
         # Default to smoke when no mode — safer for casual runs
@@ -307,6 +325,29 @@ def main() -> int:
             _run(exp, logger)
             stage_results["export"] = "ok"
 
+        # 8) Unattended live JSON to phenom (no sudo; sean owns data/climate-record)
+        if args.deploy_phenom:
+            dunleavy_deploy = (
+                ROOT.parent
+                / "dunleavyorganization.com"
+                / "deploy"
+                / "deploy-climate-data.ps1"
+            )
+            if not dunleavy_deploy.exists():
+                raise RuntimeError(f"Missing phenom data deploy script: {dunleavy_deploy}")
+            _run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(dunleavy_deploy),
+                ],
+                logger,
+            )
+            stage_results["deploy_phenom"] = "ok"
+
         exit_code = 0
         logger.info("=== REFRESH OK ===")
         print("\n✅ Refresh completed successfully")
@@ -326,6 +367,8 @@ def main() -> int:
         "reprocess_all": args.reprocess_all,
         "changed_station_ids": changed_ids,
         "reprocess_station_ids": reprocess_ids,
+        "copy_to_dunleavy": bool(args.copy_to_dunleavy),
+        "deploy_phenom": bool(args.deploy_phenom),
         "stages": stage_results,
         "exit_code": exit_code,
         "plan": plan,

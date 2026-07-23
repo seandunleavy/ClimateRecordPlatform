@@ -59,8 +59,8 @@ v2.1 CLOSED (code) — Automated refresh pipeline
   ✅ change detection (byte size) → silver/QC only changed stations
   ✅ run_refresh.py + bats + scripts/register_refresh_task.ps1
   ✅ smoke OK 2026-07-23; tagged v2.1.0
-NEXT (ops): register weekly Task Scheduler; first Sunday --full overnight
-NEXT (optional): unattended phenom data publish; search polish
+OPS: Task ClimateRecord-WeeklyRefresh = Sunday 2 AM → full + copy + --deploy-phenom
+NEXT: first Sunday overnight run (PC on); optional search polish
 ```
 
 

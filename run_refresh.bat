@@ -22,7 +22,8 @@ if not exist ".venv\Scripts\python.exe" (
   exit /b 1
 )
 
-".venv\Scripts\python.exe" run_refresh.py --full --copy-to-dunleavy
+REM Full refresh + local Dunleavy copy + unattended scp of climate JSON to phenom
+".venv\Scripts\python.exe" run_refresh.py --full --copy-to-dunleavy --deploy-phenom
 set ERR=%ERRORLEVEL%
 
 if %ERR% neq 0 (
@@ -33,7 +34,7 @@ if %ERR% neq 0 (
 
 echo.
 echo ========================================
-echo  Refresh completed successfully
-echo  Live case study: https://www.dunleavyorganization.com/project-climate-record.html
+echo  Refresh + phenom climate data publish OK
+echo  Live: https://www.dunleavyorganization.com/project-climate-record.html
 echo ========================================
 exit /b 0

@@ -56,10 +56,9 @@ NOAA bulk files
   → force re-download locked cohort
   → if .dly size changed (or --reprocess-all): silver + QC for those stations
   → --full: rebuild gold from ALL stations_qc on disk + optional dbt + export_web_json
-  → --copy-to-dunleavy: local folder copy only → dunleavyorganization.com/data/climate-record/
+  → --copy-to-dunleavy: local folder → dunleavyorganization.com/data/climate-record/
+  → --deploy-phenom: unattended scp of that tree to phenom (no sudo)
 ```
-
-**Not yet automatic:** public site on phenom. Local pipeline can be scheduled without sudo; live URL still needs Dunleavy deploy (or a data-only unattended path — see below).
 
 ---
 
@@ -67,25 +66,14 @@ NOAA bulk files
 
 | Stage | Automated? | Password / sudo? |
 |-------|------------|------------------|
-| Warehouse refresh (local) | Scripted; Task Scheduler **not registered yet** | No |
+| Warehouse refresh (local) | Yes — Task **ClimateRecord-WeeklyRefresh** (Sunday 2 AM) | No |
 | Copy JSON into local Dunleavy repo | Yes with `--copy-to-dunleavy` | No |
-| Live site on **phenom** | Manual today | Dunleavy `deploy.ps1` still uses interactive `sudo` |
+| Live climate **JSON** on **phenom** | Yes — `deploy/deploy-climate-data.ps1` (BatchMode scp) | No |
+| Full Dunleavy **HTML/CSS** site deploy | Manual when pages change | `deploy.ps1` may still prompt sudo |
 
-### SSH / passwordless (carry-over from SPG — do next here)
+Weekly bat: `run_refresh.py --full --copy-to-dunleavy --deploy-phenom`
 
-- **SSH key + host `phenom`:** already shared (same as SPG / Dunleavy config).
-- **SPG has** passwordless **sudo** for a limited helper:  
-  `singleplayergamers.com/deploy/install-passwordless-deploy.sh` + `remote-unattended.sh`.
-- **Dunleavy does not** have that yet — still `ssh -t` + sudo chown.
-- **MassiveStock** has `-DataOnly` nightly: scp JSON without sudo **if** `sean` already owns the tree.
-- **Sean wants** the same unattended idea for climate/Dunleavy data.
-
-**Recommended next implementation (when continuing):**
-
-1. **Option A (simplest, like stock):** Dunleavy or Climate `deploy-data-only` → scp `data/climate-record/` with BatchMode + chmod/chgrp, no sudo after one ownership fix.  
-2. **Option B (SPG clone):** Dunleavy `remote-unattended.sh` + `install-passwordless-deploy.sh` for `/var/www/dunleavyorganization.com`.
-
-Do **not** background interactive sudo deploys. User types password in their terminal for one-time install.
+Requires: SSH key to `phenom` + `sean` owns `/var/www/dunleavyorganization.com/data/climate-record` (already true after full site deploys).
 
 ---
 
@@ -95,31 +83,24 @@ Do **not** background interactive sudo deploys. User types password in their ter
 cd C:\Users\seand\GitProjects\ClimateRecordPlatform
 .\.venv\Scripts\Activate.ps1
 
-# Safe smoke
+# Safe smoke (no gold, no phenom)
 .\run_refresh_smoke.bat
-# or:
-python run_refresh.py --smoke --limit 3 --reprocess-all
 
-# Full overnight (long gold)
-python run_refresh.py --full --copy-to-dunleavy
+# Full weekly-style (warehouse + local copy + live JSON)
+python run_refresh.py --full --copy-to-dunleavy --deploy-phenom
 # or: .\run_refresh.bat
 
-# Register weekly task (when ready)
-.\scripts\register_refresh_task.ps1
-
-# Live site after local copy (still may need sudo today)
-cd C:\Users\seand\GitProjects\dunleavyorganization.com
-.\deploy\deploy.ps1   # or -Preview; interactive if sudo prompts
+# Phenom data-only only (after export already copied locally)
+cd ..\dunleavyorganization.com
+.\deploy\deploy-climate-data.ps1
 ```
 
 ---
 
 ## Open next actions (priority order)
 
-1. **Unattended publish path** for climate JSON (Option A or B above) — Sean asked if SPG process can apply; answer was yes.  
-2. **Register** weekly Task Scheduler (`register_refresh_task.ps1`) after unattended publish exists (or schedule warehouse-only first).  
-3. **First overnight** `run_refresh.py --full` when machine can run for hours.  
-4. Optional later: incremental gold patch; station search polish; CDO API only if daily tiny deltas ever needed (not required).
+1. First Sunday / overnight full run (PC on at 2 AM).  
+2. Optional: incremental gold patch; station search polish.
 
 ---
 
