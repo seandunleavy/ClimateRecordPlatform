@@ -162,14 +162,14 @@ python -m src.ingest.download_station_days --nationwide --list-only --quiet-list
 
 ## Last session
 
-**2026-07-23 — Automated refresh pipeline (v2.1 start) + handoff**
+**2026-07-23 — Close v2.1 code (refresh automation) + commit/tag**
 
 - Force download + `--from-manifest` cohort lock + size change detection  
 - Orchestrator `run_refresh.py` (`--smoke` / `--full`), bats, Task Scheduler helper  
 - Smoke OK: 3 stations meta → bronze → silver → QC (~15s); gold skipped by design  
-- **Locked:** bulk NOAA for ongoing (not CDO API); **weekly** cadence fits NCEI updates  
-- **Automation honesty:** local refresh can be Task Scheduler (not registered yet); live phenom still needs Dunleavy deploy / sudo until SPG-style or DataOnly path  
-- **Next session should open in this repo**, not career — full context: [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md)  
+- Committed + tagged **`v2.1.0`** (process snapshot on GitHub for portfolio readers)  
+- Ops still open: register weekly task; first overnight `--full`; phenom unattended publish later  
+- Context: [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md)  
 
 **2026-07-22 — Close v2.0 (nationwide live)**
 
