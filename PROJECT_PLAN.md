@@ -59,8 +59,10 @@ v2.1 CLOSED (code) — Automated refresh pipeline
   ✅ change detection (byte size) → silver/QC only changed stations
   ✅ run_refresh.py + bats + scripts/register_refresh_task.ps1
   ✅ smoke OK 2026-07-23; tagged v2.1.0
-OPS: Task ClimateRecord-WeeklyRefresh = Sunday 2 AM → full + copy + --deploy-phenom
-NEXT: first Sunday overnight run (PC on); optional search polish
+OPS: Task ClimateRecord-WeeklyRefresh = Sunday 2:00 AM
+  → run_refresh.bat → --full --copy-to-dunleavy --deploy-phenom
+  → LogonType Password + Highest + WakeToRun (match MassiveStock reliability; weekly schedule)
+NEXT: observe first Sunday run (logs/refresh.log + live explorer); optional search polish
 ```
 
 
@@ -162,14 +164,19 @@ python -m src.ingest.download_station_days --nationwide --list-only --quiet-list
 
 ## Last session
 
-**2026-07-23 — Close v2.1 code (refresh automation) + commit/tag**
+**2026-07-23 — Refresh automation live as scheduled job; wrap**
 
-- Force download + `--from-manifest` cohort lock + size change detection  
-- Orchestrator `run_refresh.py` (`--smoke` / `--full`), bats, Task Scheduler helper  
-- Smoke OK: 3 stations meta → bronze → silver → QC (~15s); gold skipped by design  
-- Committed + tagged **`v2.1.0`** (process snapshot on GitHub for portfolio readers)  
-- Ops still open: register weekly task; first overnight `--full`; phenom unattended publish later  
+- **v2.1.0** on GitHub: `run_refresh.py`, force pull, change detect, cohort lock  
+- Unattended phenom climate JSON: `--deploy-phenom` + Dunleavy `deploy/deploy-climate-data.ps1`  
+- Task **ClimateRecord-WeeklyRefresh**: Sunday 2 AM; Password / Highest / WakeToRun (like MassiveStock)  
+- First real proof: **next Sunday** — check `logs/refresh.log` + live explorer after  
 - Context: [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md)  
+
+**Earlier 2026-07-23 — Close v2.1 code + commit/tag**  
+
+- Force download + orchestrator + smoke; tagged **`v2.1.0`**  
+
+
 
 **2026-07-22 — Close v2.0 (nationwide live)**
 

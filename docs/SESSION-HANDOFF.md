@@ -97,10 +97,20 @@ cd ..\dunleavyorganization.com
 
 ---
 
+## Scheduled job (current)
+
+| Item | Value |
+|------|--------|
+| Task name | `ClimateRecord-WeeklyRefresh` |
+| When | Sunday **2:00 AM** local |
+| Runs | `run_refresh.bat` → `--full --copy-to-dunleavy --deploy-phenom` |
+| Logon | **Password** + **Highest** + **WakeToRun** (aligned with MassiveStock Daily Pipeline) |
+| After run | Check `logs/refresh.log`, `data/meta/refresh_manifest.json`, live explorer |
+
 ## Open next actions (priority order)
 
-1. First Sunday / overnight full run (PC on at 2 AM).  
-2. Optional: incremental gold patch; station search polish.
+1. **Observe first Sunday run** (no code required).  
+2. Optional later: incremental gold patch; station search polish.
 
 ---
 
