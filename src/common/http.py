@@ -10,17 +10,40 @@ DEFAULT_TIMEOUT = 120
 USER_AGENT = "ClimateRecordPlatform/0.1 (portfolio ETL; local research)"
 
 
-def download_file(url: str, dest: Path, *, retries: int = 3, sleep_s: float = 1.5) -> Path:
-    """Download url to dest. Skips if dest exists and size > 0."""
+def download_file(
+    url: str,
+    dest: Path,
+    *,
+    force: bool = False,
+    retries: int = 3,
+    sleep_s: float = 1.5,
+) -> dict:
+    """
+    Download url to dest.
+
+    Skips when dest exists and size > 0 unless force=True (refresh path).
+
+    Returns:
+      path, skipped, bytes, previous_bytes, changed
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.exists() and dest.stat().st_size > 0:
+    previous_bytes = dest.stat().st_size if dest.exists() else 0
+
+    if not force and dest.exists() and previous_bytes > 0:
         print(f"skip (exists): {dest.name}")
-        return dest
+        return {
+            "path": dest,
+            "skipped": True,
+            "bytes": previous_bytes,
+            "previous_bytes": previous_bytes,
+            "changed": False,
+        }
 
     last_err: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            print(f"GET {url} -> {dest} (attempt {attempt})")
+            label = "GET (force)" if force and previous_bytes > 0 else "GET"
+            print(f"{label} {url} -> {dest} (attempt {attempt})")
             with requests.get(
                 url,
                 stream=True,
@@ -34,8 +57,16 @@ def download_file(url: str, dest: Path, *, retries: int = 3, sleep_s: float = 1.
                         if chunk:
                             f.write(chunk)
                 tmp.replace(dest)
-            print(f"ok: {dest} ({dest.stat().st_size:,} bytes)")
-            return dest
+            new_bytes = dest.stat().st_size
+            changed = new_bytes != previous_bytes or previous_bytes == 0
+            print(f"ok: {dest} ({new_bytes:,} bytes" + ("; changed" if changed else "; same size") + ")")
+            return {
+                "path": dest,
+                "skipped": False,
+                "bytes": new_bytes,
+                "previous_bytes": previous_bytes,
+                "changed": changed,
+            }
         except Exception as e:  # noqa: BLE001 — surface and retry
             last_err = e
             print(f"fail: {e}")

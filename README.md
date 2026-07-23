@@ -31,7 +31,7 @@
 | dbt tests | **29 PASS** |
 | Explorer | Live on Dunleavy (multi-chart + ranks + map) |
 
-Optional later: station search polish; incremental refresh.
+**v2.1 refresh (in progress):** scheduled re-pull of the locked station cohort — see below.
 
 ---
 
@@ -72,12 +72,34 @@ Data under `data/` is largely gitignored (regenerable). DuckDB: `data/gold/clima
 
 ---
 
+## Automated refresh (v2.1)
+
+Keeps the **same 6,265-station cohort** current by force-pulling NOAA files and reprocessing only stations whose `.dly` size changed.
+
+```powershell
+# Safe daytime smoke (3 stations → silver + QC only; does not touch gold)
+.\.venv\Scripts\python.exe run_refresh.py --smoke --limit 3 --reprocess-all
+# or: .\run_refresh_smoke.bat
+
+# Full production refresh (long — gold rebuild over all QC files)
+.\.venv\Scripts\python.exe run_refresh.py --full --copy-to-dunleavy
+# or: .\run_refresh.bat
+
+# Register weekly Task Scheduler job (Sunday 2am default)
+.\scripts\register_refresh_task.ps1
+```
+
+Logs: `logs/refresh.log` · run summary: `data/meta/refresh_manifest.json`
+
+---
+
 ## Docs
 
 | File | Role |
 |------|------|
 | [`PROJECT_PLAN.md`](PROJECT_PLAN.md) | Phases, versions, YOU ARE HERE |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design + methods |
+| [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md) | **Latest session context** (v2.1 refresh, deploy, next actions) |
 | [`PORTFOLIO.md`](PORTFOLIO.md) | Hiring case study |
 | [`AGENTS.md`](AGENTS.md) | Agent rules for this repo |
 

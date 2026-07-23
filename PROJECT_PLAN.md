@@ -1,8 +1,8 @@
 # Climate Record Platform — Project Plan
 
-**Last updated:** 2026-07-22  
-**Status:** **v2.0 complete** — nationwide long-record live on Dunleavy  
-**Git tags:** `v1.0.0`, `v1.1.0`, `v1.2.0`, `v2.0.0`  
+**Last updated:** 2026-07-23  
+**Status:** **v2.1 complete (code)** — refresh automation shipped; weekly schedule optional next  
+**Git tags:** `v1.0.0`, `v1.1.0`, `v1.2.0`, `v2.0.0`, `v2.1.0`  
 **Live:** https://www.dunleavyorganization.com/project-climate-record.html  
 **Purpose:** Enterprise DE portfolio platform on NOAA GHCNd + public analytics.
 
@@ -26,6 +26,7 @@ A reproducible **observational climate data warehouse** from public station dail
 | **v1.1** | More charts / explorer interactions from existing marts | ✅ **Closed** |
 | **v1.2** | Dunleavy public link + deploy polish | ✅ **Closed** |
 | **v2.0** | Nationwide long-record — **same rules as v1**, all states + DC | ✅ **Closed** |
+| **v2.1** | Automated refresh (force re-pull + change detect + schedule helper) | ✅ **Code closed** |
 
 ---
 
@@ -49,11 +50,17 @@ v1.0–v1.2 CLOSED — Regional platform + public Dunleavy case study
 v2.0 CLOSED — Nationwide long-record (SAME rules as v1)
   LOCKED: USW+USC · ≥50y TMAX+TMIN+PRCP · all states+DC
   COUNT: 6,265 stations · ~514M qc_pass fact rows · ~528M silver rows
-  ✅ Bronze → silver → QC → gold (stream_per_station) → dbt 14/14 + 29/29 PASS
-  ✅ export one by_station/{id}.json each; network extremes = per-station latest year
-  ✅ Dunleavy live (desktop + mobile); site shell = phase6-shell
-  ✅ Tagged v2.0.0
-NEXT (optional): station search polish; map clustering
+  ✅ Bronze → silver → QC → gold (stream_per_station) → dbt PASS
+  ✅ Dunleavy live; tagged v2.0.0
+
+v2.1 CLOSED (code) — Automated refresh pipeline
+  ✅ force re-download (meta + .dly)
+  ✅ --from-manifest preserves locked 6,265-station cohort
+  ✅ change detection (byte size) → silver/QC only changed stations
+  ✅ run_refresh.py + bats + scripts/register_refresh_task.ps1
+  ✅ smoke OK 2026-07-23; tagged v2.1.0
+NEXT (ops): register weekly Task Scheduler; first Sunday --full overnight
+NEXT (optional): unattended phenom data publish; search polish
 ```
 
 
@@ -154,6 +161,15 @@ python -m src.ingest.download_station_days --nationwide --list-only --quiet-list
 ---
 
 ## Last session
+
+**2026-07-23 — Automated refresh pipeline (v2.1 start) + handoff**
+
+- Force download + `--from-manifest` cohort lock + size change detection  
+- Orchestrator `run_refresh.py` (`--smoke` / `--full`), bats, Task Scheduler helper  
+- Smoke OK: 3 stations meta → bronze → silver → QC (~15s); gold skipped by design  
+- **Locked:** bulk NOAA for ongoing (not CDO API); **weekly** cadence fits NCEI updates  
+- **Automation honesty:** local refresh can be Task Scheduler (not registered yet); live phenom still needs Dunleavy deploy / sudo until SPG-style or DataOnly path  
+- **Next session should open in this repo**, not career — full context: [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md)  
 
 **2026-07-22 — Close v2.0 (nationwide live)**
 

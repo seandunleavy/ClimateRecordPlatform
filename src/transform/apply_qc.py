@@ -14,6 +14,7 @@ Default rules (SE US daily TMAX/TMIN/PRCP oriented):
 
 Examples:
   python -m src.transform.apply_qc --station USW00013872
+  python -m src.transform.apply_qc --stations USW00013872,USC00380001
   python -m src.transform.apply_qc --all
 """
 from __future__ import annotations
@@ -158,6 +159,10 @@ def process_station(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Flag silver rows with qc_pass / qc_reasons")
     parser.add_argument("--station", help="Single station ID")
+    parser.add_argument(
+        "--stations",
+        help="Comma-separated station IDs (refresh subset)",
+    )
     parser.add_argument("--all", action="store_true", help="All silver station Parquet files")
     parser.add_argument("--temp-min-c", type=float, default=DEFAULT_TEMP_MIN_C)
     parser.add_argument("--temp-max-c", type=float, default=DEFAULT_TEMP_MAX_C)
@@ -168,12 +173,23 @@ def main() -> None:
         paths = [SILVER_STATIONS / f"{args.station}.parquet"]
         if not paths[0].exists():
             raise SystemExit(f"Missing {paths[0]}")
+    elif args.stations:
+        ids = [s.strip() for s in args.stations.split(",") if s.strip()]
+        paths = []
+        for sid in ids:
+            p = SILVER_STATIONS / f"{sid}.parquet"
+            if not p.exists():
+                print(f"warn: missing {p.name}, skip")
+                continue
+            paths.append(p)
+        if not paths:
+            raise SystemExit("No silver Parquet files for --stations")
     elif args.all:
         paths = sorted(SILVER_STATIONS.glob("*.parquet"))
         if not paths:
             raise SystemExit(f"No Parquet under {SILVER_STATIONS}")
     else:
-        raise SystemExit("Specify --station ID or --all")
+        raise SystemExit("Specify --station ID, --stations a,b, or --all")
 
     rules = {
         "temp_min_c": args.temp_min_c,
@@ -218,15 +234,39 @@ def main() -> None:
     print(f"output: {SILVER_STATIONS_QC}")
 
     META.mkdir(parents=True, exist_ok=True)
+    man_path = META / "silver_qc_manifest.json"
+    partial = bool(args.station or args.stations)
+    if partial and man_path.exists():
+        prior = json.loads(man_path.read_text(encoding="utf-8"))
+        by_id = {
+            s["station_id"]: s
+            for s in prior.get("stations", [])
+            if s.get("station_id")
+        }
+        for s in summaries:
+            by_id[s["station_id"]] = s
+        stations_out = list(by_id.values())
+        total_rows = sum(int(s.get("rows") or 0) for s in stations_out)
+        total_pass = sum(int(s.get("pass") or 0) for s in stations_out)
+        total_fail = sum(int(s.get("fail") or 0) for s in stations_out)
+        last_partial = {
+            "station_ids": [s["station_id"] for s in summaries],
+            "rows": sum(int(s.get("rows") or 0) for s in summaries),
+        }
+    else:
+        stations_out = summaries
+        last_partial = None
+
     man = {
         "built_at_utc": datetime.now(timezone.utc).isoformat(),
         "rules": rules,
-        "stations": summaries,
+        "partial_run": partial,
+        "stations": stations_out,
         "total_rows": total_rows,
         "total_pass": total_pass,
         "total_fail": total_fail,
+        "last_partial_refresh": last_partial,
     }
-    man_path = META / "silver_qc_manifest.json"
     man_path.write_text(json.dumps(man, indent=2), encoding="utf-8")
     print(f"manifest: {man_path}")
 

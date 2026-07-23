@@ -1,6 +1,6 @@
 # Architecture — Climate Record Platform
 
-**Last updated:** 2026-07-21 — **v1.0.0** regional long-record platform
+**Last updated:** 2026-07-23 — **v2.0** nationwide + **v2.1** automated refresh
 
 ---
 
@@ -13,13 +13,20 @@ flowchart LR
   Silver[Silver daily Parquet]
   QC[Silver QC flags]
   Gold[Gold dims facts marts]
-  Web[Public web later]
+  Web[Dunleavy explorer JSON]
+  Sched[run_refresh scheduled]
 
   NOAA --> Bronze
   Bronze --> Silver
   Silver --> QC
   QC --> Gold
   Gold --> Web
+  Sched --> NOAA
+  Sched --> Bronze
+  Sched --> Silver
+  Sched --> QC
+  Sched --> Gold
+  Sched --> Web
 ```
 
 **Rule of thumb**
@@ -91,7 +98,40 @@ Default CLI behavior (`download_station_days`):
 | `src/transform/export_qc_fails.py` | CSV export of fails for review |
 | `src/transform/silver_to_gold.py` | Gold dims / facts / marts |
 | `src/common/paths.py` | Shared directories + GHCNd base URL |
-| `src/common/http.py` | Download helper (skip if exists) |
+| `src/common/http.py` | Download helper (skip if exists; `force=` for refresh) |
+| `run_refresh.py` | Orchestrated refresh: meta → bronze → silver → QC → gold → dbt → export |
+| `run_refresh.bat` | Task Scheduler entry (full) |
+| `run_refresh_smoke.bat` | Safe daytime smoke (no gold overwrite) |
+| `scripts/register_refresh_task.ps1` | Register weekly Windows scheduled task |
+
+---
+
+## Automated refresh (v2.1)
+
+**Goal:** Keep the locked nationwide cohort current as NOAA updates `.dly` files, without re-selecting stations from scratch.
+
+| Piece | Behavior |
+|-------|----------|
+| Cohort | Always `data/meta/bronze_stations_manifest.json` (`--from-manifest`) |
+| Force pull | `--force` re-downloads meta + station files (default skip-if-exists is one-shot ingest) |
+| Change detect | Compare previous vs new **byte size** per `.dly`; only changed IDs re-enter silver/QC |
+| Force reprocess | `run_refresh.py --reprocess-all` re-parses pulled stations even if size unchanged |
+| Smoke | `--smoke --limit N` — bronze/silver/QC only; **never** rebuilds full gold marts |
+| Full | `--full` — after changes, rebuild gold from **all** QC files on disk + optional dbt + export |
+| Logs | `logs/refresh.log` + `data/meta/refresh_manifest.json` |
+
+```text
+# Daytime proof (safe)
+python run_refresh.py --smoke --limit 3 --reprocess-all
+
+# Production overnight (long gold rebuild)
+python run_refresh.py --full --copy-to-dunleavy
+# or: run_refresh.bat
+```
+
+**Why gold is all-or-nothing today:** marts are written as whole Parquet tables. A partial station list would overwrite the nationwide marts with a tiny subset. Incremental mart patch is a later enhancement.
+
+**Schedule:** `scripts/register_refresh_task.ps1` → weekly `run_refresh.bat` (default Sunday 02:00).
 
 ---
 

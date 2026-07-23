@@ -8,6 +8,7 @@ Examples:
   # All stations in bronze/stations (or only those in latest manifest)
   python -m src.transform.bronze_to_silver --all
   python -m src.transform.bronze_to_silver --from-manifest
+  python -m src.transform.bronze_to_silver --stations USW00013872,USC00380001
 """
 from __future__ import annotations
 
@@ -27,7 +28,20 @@ def _station_ids_from_manifest() -> list[str]:
     if not path.exists():
         raise SystemExit(f"Missing {path}. Run station download first.")
     data = json.loads(path.read_text(encoding="utf-8"))
-    return [s["id"] for s in data.get("stations", [])]
+    return [s["id"] for s in data.get("stations", []) if s.get("id")]
+
+
+def _paths_for_ids(ids: list[str]) -> list[Path]:
+    paths = []
+    for sid in ids:
+        p = BRONZE_STATIONS / f"{sid}.dly"
+        if not p.exists():
+            print(f"warn: missing {p.name}, skip")
+            continue
+        paths.append(p)
+    if not paths:
+        raise SystemExit("No bronze .dly files found for requested stations.")
+    return paths
 
 
 def _resolve_dly_paths(args: argparse.Namespace) -> list[Path]:
@@ -37,18 +51,14 @@ def _resolve_dly_paths(args: argparse.Namespace) -> list[Path]:
             raise SystemExit(f"Missing bronze file: {path}")
         return [path]
 
+    if args.stations:
+        ids = [s.strip() for s in args.stations.split(",") if s.strip()]
+        if not ids:
+            raise SystemExit("--stations was empty")
+        return _paths_for_ids(ids)
+
     if args.from_manifest:
-        ids = _station_ids_from_manifest()
-        paths = []
-        for sid in ids:
-            p = BRONZE_STATIONS / f"{sid}.dly"
-            if not p.exists():
-                print(f"warn: missing {p.name}, skip")
-                continue
-            paths.append(p)
-        if not paths:
-            raise SystemExit("No bronze .dly files found for manifest stations.")
-        return paths
+        return _paths_for_ids(_station_ids_from_manifest())
 
     if args.all:
         paths = sorted(BRONZE_STATIONS.glob("*.dly"))
@@ -56,7 +66,7 @@ def _resolve_dly_paths(args: argparse.Namespace) -> list[Path]:
             raise SystemExit(f"No .dly files under {BRONZE_STATIONS}")
         return paths
 
-    raise SystemExit("Specify --station ID, --from-manifest, or --all")
+    raise SystemExit("Specify --station ID, --stations a,b, --from-manifest, or --all")
 
 
 def rows_to_frame(rows: list[dict]) -> pd.DataFrame:
@@ -90,6 +100,10 @@ def write_station_parquet(df: pd.DataFrame, station_id: str) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bronze .dly -> silver Parquet observations")
     parser.add_argument("--station", help="Single station ID (e.g. USW00013872)")
+    parser.add_argument(
+        "--stations",
+        help="Comma-separated station IDs (refresh subset)",
+    )
     parser.add_argument(
         "--from-manifest",
         action="store_true",
@@ -154,14 +168,36 @@ def main() -> None:
             }
         )
 
+    man_path = META / "silver_stations_manifest.json"
+    # Partial runs (--station / --stations) merge so we do not wipe full-cohort inventory
+    partial = bool(args.station or args.stations)
+    if partial and man_path.exists():
+        prior = json.loads(man_path.read_text(encoding="utf-8"))
+        by_id = {
+            s["station_id"]: s
+            for s in prior.get("stations", [])
+            if s.get("station_id")
+        }
+        for s in summary:
+            by_id[s["station_id"]] = s
+        stations_out = list(by_id.values())
+        last_refresh = {
+            "station_ids": [s["station_id"] for s in summary],
+            "rows": sum(s["rows"] for s in summary),
+        }
+    else:
+        stations_out = summary
+        last_refresh = None
+
     manifest = {
         "built_at_utc": datetime.now(timezone.utc).isoformat(),
         "elements_filter": "ALL" if keep_all else sorted(elements),
         "drop_missing": args.drop_missing,
-        "stations": summary,
-        "total_rows": sum(s["rows"] for s in summary),
+        "partial_run": partial,
+        "stations": stations_out,
+        "total_rows": sum(s["rows"] for s in stations_out),
+        "last_partial_refresh": last_refresh,
     }
-    man_path = META / "silver_stations_manifest.json"
     man_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"manifest: {man_path}")
     print(f"total rows: {manifest['total_rows']:,}")

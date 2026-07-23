@@ -24,3 +24,6 @@ data/serve/web/by_station/**
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+logs/
+data/meta/*.log
+data/meta/qc_fails*.csv

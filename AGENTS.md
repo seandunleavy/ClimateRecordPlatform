@@ -1,5 +1,11 @@
 # Climate Record Platform — Agent rules
 
+## Session start (mandatory)
+
+1. Read [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md) if present (latest decisions + v2.1 refresh + deploy honesty).  
+2. Read `PROJECT_PLAN.md` — **YOU ARE HERE** + **Last session**.  
+3. Work **only** in this repo (and Dunleavy deploy paths when publishing). Do **not** put climate engineering context in `GitProjects/career`.  
+
 ## Product
 
 - **Enterprise DE platform** on NOAA **GHCNd** daily observations.  
@@ -61,6 +67,11 @@ python -m src.transform.export_qc_fails
 # static web export (optional copy into Dunleavy data/)
 python -m src.serve.export_web_json --copy-to-dunleavy
 # full multi-decade mart JSON (default). Single year: --single-year 2020
+
+# automated refresh (locked cohort; see ARCHITECTURE)
+python run_refresh.py --smoke --limit 3 --reprocess-all
+python run_refresh.py --full --copy-to-dunleavy
+# Task Scheduler: run_refresh.bat | register: scripts/register_refresh_task.ps1
 
 # read-only API (DuckDB over gold Parquet)
 uvicorn src.api.main:app --reload --port 8080

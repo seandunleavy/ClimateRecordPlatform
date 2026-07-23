@@ -25,6 +25,7 @@ End-to-end medallion platform on **nationwide long-record** public stations (v2;
 5. **Gold star + marts** — dims + daily fact (~**514M** qc_pass rows) built **station-at-a-time** to avoid OOM; monthly climate, HDD/CDD, extremes, freeze, coverage  
 6. **dbt + DuckDB** — SQL models + uniqueness / relationship tests (**29 PASS**)  
 7. **Serve** — one combined mart JSON per station; multi-chart explorer + map on Dunleavy; optional read-only FastAPI  
+8. **Refresh (v2.1)** — scheduled re-pull of the locked cohort (`run_refresh.py`): force-download → change detection → silver/QC for changed stations → optional full gold + dbt + web export  
 
 
 ---
