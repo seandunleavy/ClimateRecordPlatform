@@ -164,6 +164,13 @@ python -m src.ingest.download_station_days --nationwide --list-only --quiet-list
 
 ## Last session
 
+**2026-07-26 — First Sunday refresh OK; observation-level change metrics**
+
+- First scheduled **ClimateRecord-WeeklyRefresh** succeeded (~2h39m, 1166 bronze size-changes, gold/dbt/export/deploy OK)  
+- Clarified: cohort is update-in-place (no new stations); NOAA may add **new daily values** and/or **correct** existing ones  
+- Added **observation_diff** (no gold schema change): prior vs new silver counts `inserted` / `value_changed` / `deleted` / `flag_only_changed` → `data/meta/observation_diff_manifest.json` + `refresh_manifest.observation_diff`  
+- Next Sunday: read those fields to see new days vs corrections numerically  
+
 **2026-07-23 — Refresh automation live as scheduled job; wrap**
 
 - **v2.1.0** on GitHub: `run_refresh.py`, force pull, change detect, cohort lock  

@@ -33,7 +33,8 @@
 | `src/common/http.py` | `download_file(..., force=)` returns skip/bytes/changed |
 | `src/ingest/download_ghcnd_meta.py` | `--force` |
 | `src/ingest/download_station_days.py` | `--from-manifest`, `--force`, `--limit`; change id lists on manifest |
-| `src/transform/bronze_to_silver.py` | `--stations a,b,c`; **merge** partial into silver manifest |
+| `src/transform/bronze_to_silver.py` | `--stations a,b,c`; **merge** partial into silver manifest; **observation_diff** before overwrite |
+| `src/transform/observation_diff.py` | Prior vs new silver: inserted / value_changed / deleted (meta only, not gold columns) |
 | `src/transform/apply_qc.py` | `--stations`; **merge** partial into QC manifest |
 | `run_refresh.py` | Orchestrator: meta → bronze → silver → QC → optional gold/dbt/export |
 | `run_refresh.bat` | Full weekly-style entry (`--full --copy-to-dunleavy`) |
@@ -55,10 +56,15 @@ python run_refresh.py --smoke --limit 3 --reprocess-all
 NOAA bulk files
   → force re-download locked cohort
   → if .dly size changed (or --reprocess-all): silver + QC for those stations
+       (while rewriting silver: count new days vs value corrections vs deletes)
   → --full: rebuild gold from ALL stations_qc on disk + optional dbt + export_web_json
   → --copy-to-dunleavy: local folder → dunleavyorganization.com/data/climate-record/
   → --deploy-phenom: unattended scp of that tree to phenom (no sudo)
 ```
+
+**Read after a weekly run:** `data/meta/refresh_manifest.json` → `observation_diff`
+(`inserted` = new daily keys, `value_changed` = corrections, `deleted` = keys gone).
+Detail per station: `data/meta/observation_diff_manifest.json`.
 
 ---
 

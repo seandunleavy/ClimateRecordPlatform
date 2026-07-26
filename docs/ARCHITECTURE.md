@@ -92,7 +92,8 @@ Default CLI behavior (`download_station_days`):
 | `src/ingest/download_ghcnd_meta.py` | Bronze meta files |
 | `src/ingest/download_station_days.py` | Bronze `.dly` sample |
 | `src/transform/parse_dly.py` | Fixed-width parse helpers |
-| `src/transform/bronze_to_silver.py` | Bronze → silver Parquet |
+| `src/transform/bronze_to_silver.py` | Bronze → silver Parquet (+ observation diff on overwrite) |
+| `src/transform/observation_diff.py` | Prior vs new silver: inserted / value_changed / deleted (run meta only) |
 | `src/transform/silver_quality_check.py` | Profile min/max, missing, dups |
 | `src/transform/apply_qc.py` | Row QC flags → `stations_qc` |
 | `src/transform/export_qc_fails.py` | CSV export of fails for review |
@@ -115,10 +116,11 @@ Default CLI behavior (`download_station_days`):
 | Cohort | Always `data/meta/bronze_stations_manifest.json` (`--from-manifest`) |
 | Force pull | `--force` re-downloads meta + station files (default skip-if-exists is one-shot ingest) |
 | Change detect | Compare previous vs new **byte size** per `.dly`; only changed IDs re-enter silver/QC |
+| Observation diff | Before overwriting each silver parquet, compare prior vs new keys `(date, element)`: **inserted** (new days), **value_changed** (corrections), **deleted**, **flag_only_changed**. Written to `data/meta/observation_diff_manifest.json` and rolled into `refresh_manifest.json` → `observation_diff`. **Not** new gold columns. |
 | Force reprocess | `run_refresh.py --reprocess-all` re-parses pulled stations even if size unchanged |
 | Smoke | `--smoke --limit N` — bronze/silver/QC only; **never** rebuilds full gold marts |
 | Full | `--full` — after changes, rebuild gold from **all** QC files on disk + optional dbt + export |
-| Logs | `logs/refresh.log` + `data/meta/refresh_manifest.json` |
+| Logs | `logs/refresh.log` + `data/meta/refresh_manifest.json` (+ observation_diff summary) |
 
 ```text
 # Daytime proof (safe)

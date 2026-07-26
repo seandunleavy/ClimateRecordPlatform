@@ -270,6 +270,7 @@ def main() -> int:
                 reprocess_ids = _station_ids_from_manifest(args.limit)
 
         # 3) Silver (changed or forced subset only)
+        #    bronze_to_silver diffs prior silver vs new (inserted / value_changed / deleted)
         if plan["silver"]:
             if not reprocess_ids:
                 logger.info("silver: skip (no stations to reprocess)")
@@ -280,7 +281,22 @@ def main() -> int:
                     [py, "-m", "src.transform.bronze_to_silver", "--stations", joined],
                     logger,
                 )
-                stage_results["silver"] = {"stations": len(reprocess_ids)}
+                silver_stage: dict = {"stations": len(reprocess_ids)}
+                obs_path = META / "observation_diff_manifest.json"
+                if obs_path.exists():
+                    try:
+                        obs = json.loads(obs_path.read_text(encoding="utf-8"))
+                        silver_stage["observation_diff"] = obs.get("summary") or {}
+                        s = silver_stage["observation_diff"]
+                        logger.info(
+                            "observation_diff: inserted=%s value_changed=%s deleted=%s",
+                            s.get("inserted"),
+                            s.get("value_changed"),
+                            s.get("deleted"),
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("could not load observation_diff: %s", exc)
+                stage_results["silver"] = silver_stage
 
         # 4) QC
         if plan["qc"]:
@@ -358,6 +374,11 @@ def main() -> int:
 
     finished = datetime.now(timezone.utc)
     duration_s = (finished - started).total_seconds()
+    # Promote observation_diff to top level when silver ran (easy to read after Sunday)
+    observation_diff = None
+    silver_stage = stage_results.get("silver")
+    if isinstance(silver_stage, dict) and silver_stage.get("observation_diff"):
+        observation_diff = silver_stage["observation_diff"]
     summary = {
         "started_at_utc": started.isoformat(),
         "finished_at_utc": finished.isoformat(),
@@ -369,6 +390,7 @@ def main() -> int:
         "reprocess_station_ids": reprocess_ids,
         "copy_to_dunleavy": bool(args.copy_to_dunleavy),
         "deploy_phenom": bool(args.deploy_phenom),
+        "observation_diff": observation_diff,
         "stages": stage_results,
         "exit_code": exit_code,
         "plan": plan,

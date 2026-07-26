@@ -1,6 +1,9 @@
 """
 Phase 2 — parse bronze .dly station files into silver Parquet tables.
 
+On overwrite, compares prior silver vs new rows (inserted / value_changed /
+deleted) and writes data/meta/observation_diff_manifest.json for refresh.
+
 Examples:
   # One station first (recommended while learning)
   python -m src.transform.bronze_to_silver --station USW00013872
@@ -20,6 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.common.paths import BRONZE_STATIONS, META, SILVER, SILVER_STATIONS
+from src.transform.observation_diff import aggregate_diffs, diff_station_frames
 from src.transform.parse_dly import parse_dly_file
 
 
@@ -134,6 +138,7 @@ def main() -> None:
     META.mkdir(parents=True, exist_ok=True)
 
     summary = []
+    station_diffs: list[dict] = []
     for path in paths:
         station_id = path.stem
         print(f"parse {path.name} ...")
@@ -146,6 +151,18 @@ def main() -> None:
         if args.drop_missing and not df.empty:
             df = df[~df["is_missing"]].copy()
 
+        # Diff against prior silver before overwrite (new days vs corrections)
+        prior_path = SILVER_STATIONS / f"{station_id}.parquet"
+        old_df: pd.DataFrame | None = None
+        if prior_path.exists():
+            try:
+                old_df = pd.read_parquet(prior_path)
+            except Exception as exc:  # noqa: BLE001 — keep parse going
+                print(f"  warn: could not read prior silver for diff ({exc})")
+                old_df = None
+        diff = diff_station_frames(old_df, df, station_id=station_id)
+        station_diffs.append(diff)
+
         out = write_station_parquet(df, station_id)
         n = len(df)
         date_min = str(df["date"].min().date()) if n else None
@@ -157,6 +174,13 @@ def main() -> None:
             f"  -> {out.name}: {n:,} rows  "
             f"range={date_min} .. {date_max}  elements={elem_counts}"
         )
+        if not diff.get("first_run"):
+            print(
+                f"  diff: +{diff['inserted']} new  "
+                f"~{diff['value_changed']} value_changed  "
+                f"-{diff['deleted']} deleted  "
+                f"(flags_only={diff['flag_only_changed']})"
+            )
         summary.append(
             {
                 "station_id": station_id,
@@ -165,8 +189,35 @@ def main() -> None:
                 "date_max": date_max,
                 "elements": {str(k): int(v) for k, v in elem_counts.items()},
                 "path": str(out),
+                "observation_diff": {
+                    "inserted": diff["inserted"],
+                    "deleted": diff["deleted"],
+                    "value_changed": diff["value_changed"],
+                    "flag_only_changed": diff["flag_only_changed"],
+                    "first_run": diff["first_run"],
+                    "inserted_date_max": diff.get("inserted_date_max"),
+                    "value_changed_date_max": diff.get("value_changed_date_max"),
+                },
             }
         )
+
+    obs_agg = aggregate_diffs(station_diffs)
+    obs_manifest = {
+        "built_at_utc": datetime.now(timezone.utc).isoformat(),
+        "elements_filter": "ALL" if keep_all else sorted(elements),
+        "drop_missing": args.drop_missing,
+        "summary": obs_agg,
+        "stations": station_diffs,
+    }
+    obs_path = META / "observation_diff_manifest.json"
+    obs_path.write_text(json.dumps(obs_manifest, indent=2), encoding="utf-8")
+    print(
+        f"observation_diff: inserted={obs_agg['inserted']:,}  "
+        f"value_changed={obs_agg['value_changed']:,}  "
+        f"deleted={obs_agg['deleted']:,}  "
+        f"stations={obs_agg['stations_compared']}"
+    )
+    print(f"observation_diff manifest: {obs_path}")
 
     man_path = META / "silver_stations_manifest.json"
     # Partial runs (--station / --stations) merge so we do not wipe full-cohort inventory
@@ -184,10 +235,15 @@ def main() -> None:
         last_refresh = {
             "station_ids": [s["station_id"] for s in summary],
             "rows": sum(s["rows"] for s in summary),
+            "observation_diff": obs_agg,
         }
     else:
         stations_out = summary
-        last_refresh = None
+        last_refresh = {
+            "station_ids": [s["station_id"] for s in summary],
+            "rows": sum(s["rows"] for s in summary),
+            "observation_diff": obs_agg,
+        }
 
     manifest = {
         "built_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -197,6 +253,7 @@ def main() -> None:
         "stations": stations_out,
         "total_rows": sum(s["rows"] for s in stations_out),
         "last_partial_refresh": last_refresh,
+        "last_observation_diff": obs_agg,
     }
     man_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"manifest: {man_path}")

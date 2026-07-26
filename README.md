@@ -91,6 +91,17 @@ Keeps the **same 6,265-station cohort** current by force-pulling NOAA files and 
 
 Logs: `logs/refresh.log` · run summary: `data/meta/refresh_manifest.json`
 
+**Observation-level changes (after silver rewrite):** prior vs new silver is compared per station.
+
+| Field | Meaning |
+|-------|---------|
+| `inserted` | New daily keys (new days / fills) |
+| `value_changed` | Same date+element, different value → NOAA correction |
+| `deleted` | Key no longer in the new file |
+| `flag_only_changed` | Same value, different M/Q/S flags |
+
+Summary lands in `refresh_manifest.json` → `observation_diff`. Per-station detail: `data/meta/observation_diff_manifest.json`. This is **run metadata only** — not new gold/star columns.
+
 ---
 
 ## Docs
