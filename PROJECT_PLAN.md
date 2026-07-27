@@ -1,7 +1,7 @@
 # Climate Record Platform — Project Plan
 
-**Last updated:** 2026-07-23  
-**Status:** **v2.1 complete (code)** — refresh automation shipped; weekly schedule optional next  
+**Last updated:** 2026-07-27  
+**Status:** **v2.1 live** — weekly refresh proven; observation_diff shipped; optional ops polish next  
 **Git tags:** `v1.0.0`, `v1.1.0`, `v1.2.0`, `v2.0.0`, `v2.1.0`  
 **Live:** https://www.dunleavyorganization.com/project-climate-record.html  
 **Purpose:** Enterprise DE portfolio platform on NOAA GHCNd + public analytics.
@@ -53,16 +53,22 @@ v2.0 CLOSED — Nationwide long-record (SAME rules as v1)
   ✅ Bronze → silver → QC → gold (stream_per_station) → dbt PASS
   ✅ Dunleavy live; tagged v2.0.0
 
-v2.1 CLOSED (code) — Automated refresh pipeline
+v2.1 LIVE — Automated refresh + first Sunday proof
   ✅ force re-download (meta + .dly)
   ✅ --from-manifest preserves locked 6,265-station cohort
   ✅ change detection (byte size) → silver/QC only changed stations
   ✅ run_refresh.py + bats + scripts/register_refresh_task.ps1
-  ✅ smoke OK 2026-07-23; tagged v2.1.0
-OPS: Task ClimateRecord-WeeklyRefresh = Sunday 2:00 AM
-  → run_refresh.bat → --full --copy-to-dunleavy --deploy-phenom
-  → LogonType Password + Highest + WakeToRun (match MassiveStock reliability; weekly schedule)
-NEXT: observe first Sunday run (logs/refresh.log + live explorer); optional search polish
+  ✅ Task ClimateRecord-WeeklyRefresh (Sun 2 AM; Password/Highest/WakeToRun)
+  ✅ First scheduled run 2026-07-26 OK (~2h39m, ~1166 size-changed, gold/dbt/export/deploy)
+  ✅ observation_diff (inserted / value_changed / deleted) — meta only, not gold columns
+  Tagged v2.1.0; observation_diff commit on master (push done)
+
+NEXT (when resuming Climate Record — pick from parking lot, not all required):
+  1. After next Sunday: read refresh_manifest.observation_diff (first real new-vs-correct counts)
+  2. Optional ops polish (Level-5): append-only run history; dbt-pass-before-deploy; fail alert
+  3. Optional meta hygiene: gitignore regenerable run manifests; keep cohort lock file
+  4. Optional explorer: search/state filter for 6k stations
+  5. Freeze product scope unless trust/refresh is broken (portfolio = high-value complete)
 ```
 
 

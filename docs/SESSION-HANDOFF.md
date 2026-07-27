@@ -1,11 +1,25 @@
 # Session handoff — Climate Record Platform
 
 **Purpose:** Durable context so work continues in **this repo’s session**, not the career folder.  
-**Written:** 2026-07-23 (moved out of `GitProjects/career` chat)  
+**Written:** 2026-07-23 · **Updated:** 2026-07-27  
 **Repo:** `C:\Users\seand\GitProjects\ClimateRecordPlatform`  
 **Live:** https://www.dunleavyorganization.com/project-climate-record.html  
 
 **Agents:** On session start, read this file + `PROJECT_PLAN.md` (YOU ARE HERE) + `docs/ARCHITECTURE.md` refresh section.
+
+### Resume after career work (2026-07-27)
+
+Sean paused Climate Record for a call + profile work. **Product is high-value complete** for portfolio; next work is optional polish from discussion:
+
+| Priority | Item | Notes |
+|----------|------|--------|
+| After next Sunday | Read `observation_diff` on real changed stations | First run with this feature will show new days vs corrections |
+| Optional | Ops Level-5 | Run history archive; publish only if dbt pass; simple fail alert |
+| Optional | Meta gitignore | Keep `bronze_stations_manifest` (cohort); ignore regenerable run manifests |
+| Optional | Explorer UX | Search / state filter for 6k stations |
+| Career (separate) | `career/DISCOVERY.md` | Discovery process + meeting capture — not this repo |
+
+Do **not** reopen foundation (grain, cohort rules, medallion) unless trust is broken.
 
 ---
 
