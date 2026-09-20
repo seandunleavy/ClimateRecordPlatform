@@ -82,8 +82,8 @@ Keeps the **same 6,265-station cohort** current by force-pulling NOAA files and 
 # or: .\run_refresh_smoke.bat
 
 # Full production refresh (long — gold rebuild over all QC files)
-.\.venv\Scripts\python.exe run_refresh.py --full --copy-to-dunleavy
-# or: .\run_refresh.bat
+.\.venv\Scripts\python.exe run_refresh.py --full --copy-to-dunleavy --deploy-r2
+# or: .\run_refresh.bat  (Task Scheduler Sunday 2 AM)
 
 # Register weekly Task Scheduler job (Sunday 2am default)
 .\scripts\register_refresh_task.ps1

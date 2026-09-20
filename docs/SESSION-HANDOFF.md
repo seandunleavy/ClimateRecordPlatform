@@ -73,7 +73,8 @@ NOAA bulk files
        (while rewriting silver: count new days vs value corrections vs deletes)
   → --full: rebuild gold from ALL stations_qc on disk + optional dbt + export_web_json
   → --copy-to-dunleavy: local folder → dunleavyorganization.com/data/climate-record/
-  → --deploy-phenom: unattended scp of that tree to phenom (no sudo)
+  → --deploy-r2: upload that tree to Cloudflare R2 (live explorer)
+  → --deploy-phenom: legacy scp to phenom (www no longer serves this)
 ```
 
 **Read after a weekly run:** `data/meta/refresh_manifest.json` → `observation_diff`
@@ -88,12 +89,13 @@ Detail per station: `data/meta/observation_diff_manifest.json`.
 |-------|------------|------------------|
 | Warehouse refresh (local) | Yes — Task **ClimateRecord-WeeklyRefresh** (Sunday 2 AM) | No |
 | Copy JSON into local Dunleavy repo | Yes with `--copy-to-dunleavy` | No |
-| Live climate **JSON** on **phenom** | Yes — `deploy/deploy-climate-data.ps1` (BatchMode scp) | No |
-| Full Dunleavy **HTML/CSS** site deploy | Manual when pages change | `deploy.ps1` may still prompt sudo |
+| Live climate **JSON** on **R2** | Yes — Dunleavy `scripts/upload_climate_r2.py` | No (needs dunleavy `.env` Cloudflare keys) |
+| Legacy phenom JSON copy | `--deploy-phenom` still exists | No |
+| Dunleavy **HTML** | Manual `publish_pages.ps1 -Production` | No |
 
-Weekly bat: `run_refresh.py --full --copy-to-dunleavy --deploy-phenom`
+Weekly bat: `run_refresh.py --full --copy-to-dunleavy --deploy-r2`
 
-Requires: SSH key to `phenom` + `sean` owns `/var/www/dunleavyorganization.com/data/climate-record` (already true after full site deploys).
+Requires: dunleavyorganization.com `.env` with `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`. Live URL: `https://data.dunleavyorganization.com/climate-record/`
 
 ---
 
@@ -107,12 +109,12 @@ cd C:\Users\seand\GitProjects\ClimateRecordPlatform
 .\run_refresh_smoke.bat
 
 # Full weekly-style (warehouse + local copy + live JSON)
-python run_refresh.py --full --copy-to-dunleavy --deploy-phenom
+python run_refresh.py --full --copy-to-dunleavy --deploy-r2
 # or: .\run_refresh.bat
 
-# Phenom data-only only (after export already copied locally)
+# R2 data-only (after export already copied into Dunleavy)
 cd ..\dunleavyorganization.com
-.\deploy\deploy-climate-data.ps1
+python scripts\upload_climate_r2.py
 ```
 
 ---
@@ -123,7 +125,7 @@ cd ..\dunleavyorganization.com
 |------|--------|
 | Task name | `ClimateRecord-WeeklyRefresh` |
 | When | Sunday **2:00 AM** local |
-| Runs | `run_refresh.bat` → `--full --copy-to-dunleavy --deploy-phenom` |
+| Runs | `run_refresh.bat` → `--full --copy-to-dunleavy --deploy-r2` |
 | Logon | **Password** + **Highest** + **WakeToRun** (aligned with MassiveStock Daily Pipeline) |
 | After run | Check `logs/refresh.log`, `data/meta/refresh_manifest.json`, live explorer |
 

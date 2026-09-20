@@ -22,8 +22,8 @@ if not exist ".venv\Scripts\python.exe" (
   exit /b 1
 )
 
-REM Full refresh + local Dunleavy copy + unattended scp of climate JSON to phenom
-".venv\Scripts\python.exe" run_refresh.py --full --copy-to-dunleavy --deploy-phenom
+REM Full refresh + local Dunleavy copy + upload climate JSON to Cloudflare R2
+".venv\Scripts\python.exe" run_refresh.py --full --copy-to-dunleavy --deploy-r2
 set ERR=%ERRORLEVEL%
 
 if %ERR% neq 0 (
@@ -34,7 +34,7 @@ if %ERR% neq 0 (
 
 echo.
 echo ========================================
-echo  Refresh + phenom climate data publish OK
+echo  Refresh + R2 climate data publish OK
 echo  Live: https://www.dunleavyorganization.com/project-climate-record.html
 echo ========================================
 exit /b 0

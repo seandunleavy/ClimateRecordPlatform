@@ -1,5 +1,18 @@
 # Climate Record Platform — Agent rules
 
+
+## Global rules (mandatory)
+
+**Must actually open** `C:\Users\seand\.grok\AGENTS.md` at session start and again when a unit ships. This pointer is not closeout. Run the seven-item **Closeout checklist** from that file. Do not wait for Sean to say “closeout.”
+
+Follow `C:\Users\seand\.grok\AGENTS.md`. **This file does not replace it.** Global wins on conflict.
+
+Do **not** redefine session end or the documentation standard here. Closeout lives only at:
+
+`C:\Users\seand\.grok\AGENTS.md` → **Closeout checklist**
+
+If asked “did you follow global docs?”, list each file **updated** or **N/A** with why. Do not say yes.
+
 ## Session start (mandatory)
 
 1. Read [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md) if present (latest decisions + v2.1 refresh + deploy honesty).  
@@ -70,8 +83,9 @@ python -m src.serve.export_web_json --copy-to-dunleavy
 
 # automated refresh (locked cohort; see ARCHITECTURE)
 python run_refresh.py --smoke --limit 3 --reprocess-all
-python run_refresh.py --full --copy-to-dunleavy
-# Task Scheduler: run_refresh.bat | register: scripts/register_refresh_task.ps1
+python run_refresh.py --full --copy-to-dunleavy --deploy-r2
+# Task Scheduler: run_refresh.bat → R2 (not phenom)
+# register: scripts/register_refresh_task.ps1
 
 # read-only API (DuckDB over gold Parquet)
 uvicorn src.api.main:app --reload --port 8080

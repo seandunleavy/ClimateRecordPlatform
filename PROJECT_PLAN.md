@@ -1,6 +1,6 @@
 # Climate Record Platform — Project Plan
 
-**Last updated:** 2026-07-27  
+**Last updated:** 2026-09-20  
 **Status:** **v2.1 live** — weekly refresh proven; observation_diff shipped; optional ops polish next  
 **Git tags:** `v1.0.0`, `v1.1.0`, `v1.2.0`, `v2.0.0`, `v2.1.0`  
 **Live:** https://www.dunleavyorganization.com/project-climate-record.html  
@@ -62,6 +62,7 @@ v2.1 LIVE — Automated refresh + first Sunday proof
   ✅ First scheduled run 2026-07-26 OK (~2h39m, ~1166 size-changed, gold/dbt/export/deploy)
   ✅ observation_diff (inserted / value_changed / deleted) — meta only, not gold columns
   Tagged v2.1.0; observation_diff commit on master (push done)
+  2026-09-20: live JSON publish is Cloudflare R2 (`--deploy-r2`), not phenom
 
 NEXT (when resuming Climate Record — pick from parking lot, not all required):
   1. After next Sunday: read refresh_manifest.observation_diff (first real new-vs-correct counts)
@@ -169,6 +170,15 @@ python -m src.ingest.download_station_days --nationwide --list-only --quiet-list
 ---
 
 ## Last session
+
+**2026-09-20 — Weekly publish target is R2, not phenom**
+
+- Dunleavy www is Cloudflare Pages; explorer JSON is `https://data.dunleavyorganization.com/climate-record/`.
+- `run_refresh.bat` now `--full --copy-to-dunleavy --deploy-r2` (Task Scheduler still points at the bat — no task edit needed).
+- `--deploy-phenom` remains as a leftover copy to the old vhost. Do not use it for live.
+- Upload script: Dunleavy `scripts/upload_climate_r2.py` (keys in dunleavy `.env`).
+
+---
 
 **2026-07-26 — First Sunday refresh OK; observation-level change metrics**
 

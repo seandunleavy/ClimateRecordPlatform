@@ -144,12 +144,22 @@ def main() -> int:
         help="Pass through to export_web_json (local Dunleavy data/climate-record copy)",
     )
     parser.add_argument(
+        "--deploy-r2",
+        action="store_true",
+        help=(
+            "After export, upload climate-record JSON to Cloudflare R2 "
+            "(Dunleavy scripts/upload_climate_r2.py). Live explorer reads "
+            "https://data.dunleavyorganization.com/climate-record/. "
+            "Implies --copy-to-dunleavy if export runs."
+        ),
+    )
+    parser.add_argument(
         "--deploy-phenom",
         action="store_true",
         help=(
-            "After export, scp climate-record JSON to phenom unattended "
-            "(Dunleavy deploy/deploy-climate-data.ps1; no sudo). "
-            "Implies need for --copy-to-dunleavy first (auto-enabled if export runs)."
+            "Legacy: scp climate-record JSON to phenom "
+            "(Dunleavy deploy/deploy-climate-data.ps1). www no longer serves this path. "
+            "Prefer --deploy-r2."
         ),
     )
     parser.add_argument(
@@ -159,9 +169,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.deploy_phenom and not args.skip_export:
+    if (args.deploy_r2 or args.deploy_phenom) and not args.skip_export:
         # Publish path needs local Dunleavy tree populated
         args.copy_to_dunleavy = True
+    if args.deploy_r2 and args.skip_export:
+        print(
+            "warning: --deploy-r2 with --skip-export will upload existing "
+            "local Dunleavy data/climate-record/"
+        )
     if args.deploy_phenom and args.skip_export:
         print(
             "warning: --deploy-phenom with --skip-export will still try phenom sync "
@@ -341,14 +356,16 @@ def main() -> int:
             _run(exp, logger)
             stage_results["export"] = "ok"
 
-        # 8) Unattended live JSON to phenom (no sudo; sean owns data/climate-record)
+        # 8) Live JSON: R2 (www explorer) and/or legacy phenom
+        dunleavy_root = ROOT.parent / "dunleavyorganization.com"
+        if args.deploy_r2:
+            r2_script = dunleavy_root / "scripts" / "upload_climate_r2.py"
+            if not r2_script.exists():
+                raise RuntimeError(f"Missing R2 upload script: {r2_script}")
+            _run([py, str(r2_script)], logger)
+            stage_results["deploy_r2"] = "ok"
         if args.deploy_phenom:
-            dunleavy_deploy = (
-                ROOT.parent
-                / "dunleavyorganization.com"
-                / "deploy"
-                / "deploy-climate-data.ps1"
-            )
+            dunleavy_deploy = dunleavy_root / "deploy" / "deploy-climate-data.ps1"
             if not dunleavy_deploy.exists():
                 raise RuntimeError(f"Missing phenom data deploy script: {dunleavy_deploy}")
             _run(
@@ -389,6 +406,7 @@ def main() -> int:
         "changed_station_ids": changed_ids,
         "reprocess_station_ids": reprocess_ids,
         "copy_to_dunleavy": bool(args.copy_to_dunleavy),
+        "deploy_r2": bool(args.deploy_r2),
         "deploy_phenom": bool(args.deploy_phenom),
         "observation_diff": observation_diff,
         "stages": stage_results,

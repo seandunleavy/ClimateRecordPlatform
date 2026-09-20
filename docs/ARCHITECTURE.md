@@ -289,6 +289,8 @@ dbt test --project-dir dbt --profiles-dir dbt
 |-------|------|
 | `python -m src.serve.export_web_json` | Gold marts → JSON under `data/serve/web/` |
 | `--copy-to-dunleavy` | Copies into Dunleavy `data/climate-record/` |
+| `--deploy-r2` | Uploads that tree to Cloudflare R2 (live explorer) |
+| `--deploy-phenom` | Legacy scp to phenom (not live www) |
 | Static explorer page | Chart.js over mart JSON (demo) |
 | `uvicorn src.api.main:app --port 8080` | **Read-only FastAPI** — filtered marts + daily fact drill-down via DuckDB |
 
@@ -315,7 +317,7 @@ Charts/API never open bronze `.dly` in the browser; the API only returns the req
 
 **Tags:** `v1.0.0` platform · `v1.1.0` explorer · `v1.2.0` public case study · `v2.0.0` nationwide long-record.
 
-**Public demo:** https://www.dunleavyorganization.com/project-climate-record.html — static mart JSON under `/data/climate-record/` (export via `export_web_json --copy-to-dunleavy`). Layout: indexes once + **one** `by_station/{station_id}.json` per station select. Warehouse stays local; site never serves bronze/silver/gold Parquet.
+**Public demo:** https://www.dunleavyorganization.com/project-climate-record.html — JSON on **Cloudflare R2** at `https://data.dunleavyorganization.com/climate-record/` (export via `export_web_json --copy-to-dunleavy`, then `--deploy-r2`). Layout: indexes once + **one** `by_station/{station_id}.json` per station select. Warehouse stays local; site never serves bronze/silver/gold Parquet.
 
 **Nationwide gold build:** process one QC station file at a time (`stream_per_station`); write `fact_observation_daily` with a ParquetWriter; concat marts after the pass. Avoids loading ~500M+ rows into a single DataFrame.
 
